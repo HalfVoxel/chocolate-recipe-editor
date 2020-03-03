@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist/js",
+    "noImplicitAny": true,
+    "module": "es6",
+    "target": "es5",
+    "lib": ["es6", "dom"],
+    "jsx": "preserve",
+    "allowJs": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "noImplicitReturns": true,
+    "strictNullChecks": true,
+    "noFallthroughCasesInSwitch": true,
+    "strict": true,
+    "sourceMap": true,
+    "moduleResolution": "node",
+  },
+  "include": [
+    "src/*.tsx",
+    "src/*.ts"
+  ]
+}

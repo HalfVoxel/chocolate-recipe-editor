@@ -1,0 +1,147 @@
+[
+    {
+        "name": "swirly",
+        "model": "CW2361",
+        "length": 275,
+        "width": 175,
+        "height": 24,
+        "same_model": "CWCW1490",
+        "cavity": {
+            "length": 27,
+            "width": 27,
+            "height": 13,
+            "weight": 6,
+            "footprint": "circle"
+        },
+        "layout": [5, 8],
+        "properties": ["double mould"]
+    },
+    {
+        "name": "flat earth",
+        "model": "CW2207",
+        "length": 275,
+        "width": 175,
+        "height": 26,
+        "cavity": {
+            "length": 30,
+            "width": 30,
+            "height": 19,
+            "weight": 14,
+            "footprint": "circle"
+        },
+        "layout": [5, 8],
+        "properties": []
+    },
+    {
+        "name": "halvsfär",
+        "model": "CW2295",
+        "length": 275,
+        "width": 175,
+        "height": 24,
+        "cavity": {
+            "length": 29,
+            "width": 29,
+            "height": 21,
+            "weight": 13,
+            "footprint": "circle"
+        },
+        "layout": [4, 8],
+        "properties": []
+    },
+    {
+        "name": "stock",
+        "model": "CW1189",
+        "length": 275,
+        "width": 135,
+        "height": 24,
+        "cavity": {
+            "length": 30,
+            "width": 27,
+            "height": 16,
+            "weight": 12,
+            "footprint": "rectangle"
+        },
+        "layout": [3, 8],
+        "properties": []
+    },
+    {
+        "name": "kaffeböna",
+        "model": "CW1143",
+        "length": 275,
+        "width": 135,
+        "height": 24,
+        "cavity": {
+            "length": 34,
+            "width": 25,
+            "height": 21,
+            "weight": 14,
+            "footprint": "oval"
+        },
+        "layout": [3, 7],
+        "properties": []
+    },
+    {
+        "name": "swirly kub",
+        "model": "CW1676",
+        "length": 275,
+        "width": 135,
+        "height": 26,
+        "cavity": {
+            "length": 22.5,
+            "width": 22.5,
+            "height": 19.5,
+            "weight": 11.5,
+            "footprint": "rectangle"
+        },
+        "layout": [4, 8],
+        "properties": []
+    },
+    {
+        "name": "pyramid",
+        "model": "CW1260",
+        "length": 275,
+        "width": 135,
+        "height": 35,
+        "cavity": {
+            "length": 31,
+            "width": 31,
+            "height": 29,
+            "weight": 13,
+            "footprint": "rectangle"
+        },
+        "layout": [3, 7],
+        "properties": []
+    },
+    {
+        "name": "magnetkub",
+        "model": "CW1000L20",
+        "length": 275,
+        "width": 135,
+        "height": 24,
+        "cavity": {
+            "length": 23,
+            "width": 23,
+            "height": 20,
+            "weight": 12,
+            "footprint": "rectangle"
+        },
+        "layout": [3, 6],
+        "properties": ["magnets"]
+    },
+    {
+        "name": "diamant",
+        "model": null,
+        "length": null,
+        "width": null,
+        "height": null,
+        "cavity": {
+            "length": null,
+            "width": null,
+            "height": null,
+            "weight": 6,
+            "footprint": "circle"
+        },
+        "layout": [3, 7],
+        "properties": ["very uncertain"]
+    }
+]
