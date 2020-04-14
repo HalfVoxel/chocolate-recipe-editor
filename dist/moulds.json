@@ -143,5 +143,21 @@
         },
         "layout": [3, 7],
         "properties": ["very uncertain"]
+    },
+    {
+        "name": "hjärtan",
+        "model": "CW1913",
+        "length": 275,
+        "width": 135,
+        "height": 24,
+        "cavity": {
+            "length": 36,
+            "width": 29.5,
+            "height": 19,
+            "weight": 13,
+            "footprint": "circle"
+        },
+        "layout": [3, 7],
+        "properties": []
     }
 ]
