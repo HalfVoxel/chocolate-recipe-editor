@@ -3,7 +3,7 @@ import { StringStream } from "codemirror"
 import "codemirror/addon/mode/simple.js"
 import "codemirror/addon/mode/overlay.js"
 import { render, Component, createRef, Fragment } from 'inferno';
-import '../codemirror-5.52.0/lib/codemirror.css';
+import '../node_modules/codemirror/lib/codemirror.css';
 import './css/style.scss';
 import { DragManager } from "./dragdrop"
 import { debounce } from 'ts-debounce';
