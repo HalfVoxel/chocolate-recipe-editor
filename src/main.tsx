@@ -7,95 +7,11 @@ import '../node_modules/codemirror/lib/codemirror.css';
 import './css/style.scss';
 import { DragManager } from "./dragdrop"
 import { debounce } from 'ts-debounce';
+import { MouldCavity, MouldData, RecipeData, RecipeDataServer, RecipeDataShallow, SessionServer, ServerResponse, convertServerRecipeToRecipe, convertRecipeToServerRecipe } from "./data";
+import { addRecipeMode } from "./codemirror_mode";
 
 const codemirror : any = CodeMirror;
-codemirror.defineSimpleMode("testmode", {
-    // The start state contains the rules that are intially used
-    start: [
-        {
-            regex: /[^\s][^\(\{]*/,
-            token: "recipe-header",
-            next: "header",
-            indent: true,
-        }
-    ],
-    header: [
-        {
-            regex: /\(\d+(?:\.\d*)?\)/,
-            token: "float",
-        },
-        {
-            // Matches newlines essentially
-            regex: /(?=.?)/,
-            sol: true,
-            next: "indented",
-        },
-    ],
-    indented: [
-        {
-            // No indent at start of line
-            regex: /(?=[^\s])/,
-            sol: true,
-            next: "start",
-            dedent: true,
-        },
-        {
-            regex: /\s\s/,
-            sol: true,
-            token: "twotabs",
-            next: "doubleindent",
-        },
-        {
-            regex: /\s+/,
-            token: "whitespace",
-        },
-        {
-            regex: /(\d+(?:\.\d*)?(?:\s*(?:g|gram|ml|l|pinch|nypa|tsk|msk|tsp|tbsp))?)(\s*)(.+)?/,
-            token: ["recipe-measurement", null, "recipe-name"],
-        },
-        {
-            regex: /.+/,
-            token: "recipe-name"
-        }
-    ],
-    doubleindent: [
-        {
-            // No indent at start of line
-            regex: /(?=[^\s])/,
-            sol: true,
-            next: "start",
-            dedent: true,
-        },
-        {
-            // Single indent at start of line
-            regex: /\s(?=[^\s])/,
-            sol: true,
-            token: "whitespace",
-            next: "indented",
-        },
-        {
-            regex: /\s/,
-            token: "whitespace",
-        },
-        {
-            regex: /(.+)((?:till|to)\s+)(\d+(?:\.\d*)?(?:\s*(?:g|gram|ml|l|pinch|nypa|tsk|msk|tsp|tbsp))?)/,
-            token: ["recipe-name", "keyword-to", "recipe-measurement"],
-        },
-        {
-            regex: /.+/,
-            token: "recipe-name"
-        },
-    ],
-    // The meta property contains global information about the mode. It
-    // can contain properties like lineComment, which are supported by
-    // all modes, and also directives like dontIndentStates, which are
-    // specific to simple modes.
-    meta: {
-        dontIndentStates: [],
-        lineComment: "//"
-    }
-});
-console.log("Hi");
+addRecipeMode(codemirror);
 
 interface RecipeProps {
     draggable_moulds: DragManager<MouldDragData>;
@@ -103,6 +19,11 @@ interface RecipeProps {
     onChangeMoulds: ()=>void;
     onDelete: ()=>void;
 }
+
+interface RecipePlaintextProps {
+    recipe: RecipeData;
+}
+
 
 interface MouldDragData {
     container: Recipe|null;
@@ -234,23 +155,6 @@ interface RecipeAdderProps {
     moulds: MouldData[],
 }
 
-interface RecipeDataShallow {
-    id: number|null;
-    name: string;
-    last_edited: string|null;
-}
-
-interface SessionServer {
-    id: number;
-    name: string;
-    last_edited: string;
-    recipes: number[];
-}
-
-interface ServerResponse<T> {
-    status: string,
-    data: T,
-}
 
 class RecipeAdder extends Component<RecipeAdderProps> {
     state : { adding: boolean, recipes: RecipeDataShallow[]|null } = { adding: false, recipes: null };
@@ -327,6 +231,23 @@ class NewSession extends Component<NewSessionProps> {
 
 // How often to save (at most). In milliseconds
 const SavingInterval = 2000;
+
+class RecipePlaintext extends Component<RecipePlaintextProps> {
+    constructor(props: RecipeProps) {
+        super(props);
+    }
+
+    render() {
+        const recipe = this.props.recipe;
+        return (
+            <div class="recipe-plaintext">
+                <h3>{recipe.name}</h3>
+                <span>{"\t"}Formar: {recipe.moulds.map(m => m.name).join(", ")}<br/></span>
+                {recipe.recipe.split("\n").map(line => (<span>{"\t" + line}<br/></span>)}
+            </div>
+        );
+    }
+}
 
 class Recipe extends Component<RecipeProps> {
     textarea: any;
@@ -758,64 +679,21 @@ class Mould extends Component<MouldProps> {
     }
 }
 
-interface MouldCavity {
-    length: number;
-    width: number;
-    height: number;
-    weight: number;
-    footprint: string;
-};
 
-interface MouldData {
-    id: number;
-    name: string;
-    model: string;
-    length: number;
-    width: number;
-    height: number;
-    cavity: MouldCavity;
-    layout: number[];
-    properties: string[];
+
+enum DisplayMode {
+    Normal,
+    PlainText,
 }
 
-interface RecipeData {
-    id: number;
-    session: number;
-    last_edited: string;
-    name: string;
-    moulds: MouldData[];
-    recipe: string;
-}
-
-interface RecipeDataServer {
-    id: number;
-    session: number;
-    last_edited: string;
-    name: string;
-    moulds: number[];
-    recipe: string;
-}
-
-function notUndefinedOrThrow<T>(x: T | undefined): x is T {
-    if (x === undefined) {
-        throw "Value was undefined";
-    }
-    return true;
-}
-
-function convertServerRecipeToRecipe(recipe: RecipeDataServer, moulds: MouldData[]) : RecipeData {
-    let clone: RecipeData = { ...recipe, moulds: Array.from(recipe.moulds.map(m => moulds.find(x => x.id == m)).filter(notUndefinedOrThrow)) };
-    return clone;
-
-}
-
-function convertRecipeToServerRecipe(recipe: RecipeData) : RecipeDataServer {
-    let clone: RecipeDataServer = { ...recipe, moulds: Array.from(recipe.moulds.map(m => m.id)) };
-    return clone;
+function toLocalDateString(date: Date) {
+    const offset = date.getTimezoneOffset()
+    date = new Date(date.getTime() + (offset*60*1000))
+    return date.toISOString().split('T')[0]
 }
 
 class App extends Component {
-    state: { recipes: RecipeData[], moulds: MouldData[], session: number|null };
+    state: { recipes: RecipeData[], moulds: MouldData[], session: SessionServer|null, mode: DisplayMode };
     recipes_holder: any;
     moulds_holder: any;
     draggable_moulds: DragManager<MouldDragData>;
@@ -823,7 +701,7 @@ class App extends Component {
 
     constructor(props: any) {
         super(props);
-        this.state = { recipes: [], moulds: [], session: 0 };
+        this.state = { recipes: [], moulds: [], session: null, mode: DisplayMode.Normal };
 
         this.recipes_holder = createRef();
         this.moulds_holder = createRef();
@@ -896,7 +774,7 @@ class App extends Component {
         fetch("data/sessions/" + session).then(r => r.json()).then((response: ServerResponse<SessionServer>) => {
             
             return Promise.all(response.data.recipes.map(id => fetch("data/recipes/"+id).then(r => r.json()))).then((responses: ServerResponse<RecipeDataServer>[]) => {
-                this.setState({ session, recipes: Array.from(responses.map(x => convertServerRecipeToRecipe(x.data, this.state.moulds))) });
+                this.setState({ session: response.data, recipes: Array.from(responses.map(x => convertServerRecipeToRecipe(x.data, this.state.moulds))) });
             });
         }).catch(e => {
             console.trace(e);
@@ -907,7 +785,7 @@ class App extends Component {
         if (!this.state.session) throw "Cannot load recipe without a session";
 
         let newRecipe = { ...recipe };
-        newRecipe.session = this.state.session;
+        newRecipe.session = this.state.session.id;
         newRecipe.moulds = [];
 
         fetch("data/recipes", {
@@ -927,7 +805,7 @@ class App extends Component {
         const recipe: RecipeData = {
             id: 0,
             name: "New Recipe",
-            session: this.state.session,
+            session: this.state.session.id,
             moulds: [],
             recipe: "",
             last_edited: "",
@@ -972,21 +850,33 @@ class App extends Component {
         console.log(mouldUsage);
 
         if (this.state.session) {
-            return (
-                <div class="recipe-editor">
-                    <div class="moulds" ref={this.moulds_holder}>
-                        { this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element:any) => this.addDraggableMould(mould, element as Mould)} />)) }
-                        <div class="stats">
-                            <h4>Tempering chocolate</h4>
-                            <span>{ this.state.recipes.map(r => r.moulds.map(m => m.layout[0]*m.layout[1] > 30 ? 500 : 400).reduce((a,b)=>a+b, 0)).reduce((a,b)=>a+b, 0) }g</span>
+            if (this.state.mode == DisplayMode.Normal) {
+                return (
+                    <div class="recipe-editor">
+                        <div class="moulds" ref={this.moulds_holder}>
+                            { this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element:any) => this.addDraggableMould(mould, element as Mould)} />)) }
+                            <div class="stats">
+                                <h4>Tempering chocolate</h4>
+                                <span>{ this.state.recipes.map(r => r.moulds.map(m => m.layout[0]*m.layout[1] > 30 ? 500 : 400).reduce((a,b)=>a+b, 0)).reduce((a,b)=>a+b, 0) }g</span>
+                            </div>
+                            <a role="button" class="btn-recipe" onClick={() => this.setState({ mode: DisplayMode.PlainText }) }><span>View as plain text</span></a>
+                        </div>
+                        <div class="recipes" ref={this.recipes_holder}>
+                            { this.state.recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />)) }
+                            <RecipeAdder moulds={this.state.moulds} onAdd={recipe => this.loadRecipe(recipe)} onCreate={() => this.createNewRecipe()} />
                         </div>
                     </div>
-                    <div class="recipes" ref={this.recipes_holder}>
-                        { this.state.recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />)) }
-                        <RecipeAdder moulds={this.state.moulds} onAdd={recipe => this.loadRecipe(recipe)} onCreate={() => this.createNewRecipe()} />
+                );
+            } else { // if (this.state.mode == DisplayMode.PlainText) {
+                return (
+                    <div class="recipe-editor">
+                        <div class="recipes-plaintext">
+                            <h1>{this.state.session.name} {toLocalDateString(new Date(this.state.session.last_edited))}</h1>
+                            { this.state.recipes.map(recipe => (<RecipePlaintext recipe={recipe} key={recipe.id} />)) }
+                        </div>
                     </div>
-                </div>
-            )
+                );
+            }
         } else {
             return (
                 <NewSession onCreate={name=>this.createNewSession(name)} />
