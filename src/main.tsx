@@ -228,9 +228,9 @@ class SessionList extends Component<SessionListProps> {
             {
                 this.state.sessions.map(session =>
                     (<div class="session-list-item">
-                        <a href={"/" + session.id}><h2>{session.name} ({toLocalDateString(new Date(session.last_edited))})</h2></a>
+                        <a href={"" + session.id}><h2>{session.name} ({toLocalDateString(new Date(session.last_edited))})</h2></a>
                         <ul>
-                            {session.recipes.map(recipe => <li><a href={"/recipes/" + recipe.id}>{recipe.name}</a></li>)}
+                            {session.recipes.map(recipe => <li><a href={"recipes/" + recipe.id}>{recipe.name}</a></li>)}
                         </ul>
                     </div>)
                 )
