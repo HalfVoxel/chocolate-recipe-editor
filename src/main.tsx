@@ -49,6 +49,7 @@ interface ParsedRecipeItem {
 interface ParsedRecipeSection {
     name: string;
     items: ParsedRecipeItem[];
+    post_comments: string | null;
 }
 
 function prettyPrintNumber(val: number): string {
@@ -76,6 +77,9 @@ class ParsedRecipe {
 
     prettyPrint(): string {
         let result = "";
+        if (this.shells) {
+            result += "Skal: " + this.shells + "\n";
+        }
         for (const section of this.sections) {
             result += section.name + "\n";
             for (const item of section.items) {
@@ -83,6 +87,12 @@ class ParsedRecipe {
                 for (const subitem of item.additional_steps) {
                     result += "\t\t" + subitem + "\n";
                 }
+            }
+            if (section.post_comments) {
+                result += "Kommentarer\n";
+                console.log(section.post_comments);
+                result += section.post_comments.split("\n").map(x => "\t" + x).join("\n");
+                result += "\n";
             }
         }
         return result;
@@ -307,6 +317,7 @@ function parseRecipe(text: string): ParsedRecipe {
                     section = {
                         name: stream.expect("recipe-header").string,
                         items: [],
+                        post_comments: null,
                     }
                     item = null;
                     parsed.sections.push(section);
@@ -320,11 +331,22 @@ function parseRecipe(text: string): ParsedRecipe {
                 } else {
                     // Comments
                     stream.expect("recipe-comment-header");
-                    while (stream.peek()?.type == "recipe-comment") stream.next();
+                    indent = 1;
                 }
-            } else if (indent == 1) {
+            }
+
+            if (stream.isAtEnd()) return;
+
+            if (indent == 1) {
                 if (stream.peek()?.type == "recipe-comment") {
-                    while (stream.peek()?.type == "recipe-comment") stream.next();
+                    while (stream.peek()?.type == "recipe-comment") {
+                        let comment = stream.next();
+                        if (section) {
+                            if (!section.post_comments) section.post_comments = "";
+                            else section.post_comments += "\n";
+                            section.post_comments += comment.string;
+                        }
+                    }
                     stream.expectEnd();
                 } else {
                     let first = stream.expect("recipe-measurement");
@@ -340,6 +362,10 @@ function parseRecipe(text: string): ParsedRecipe {
                         };
                     }
                     let name = stream.expect("recipe-name");
+                    if (!section) {
+                        throw new UnexpectedTokenError("no recipe header", "recipe header", stream.peek());
+                    }
+
                     item = {
                         name: name.string,
                         amount: measurement,
@@ -349,7 +375,8 @@ function parseRecipe(text: string): ParsedRecipe {
                     section!.items.push(item);
                     stream.expectEnd();
                 }
-            } else if (indent == 2) {
+            }
+            if (indent == 2) {
                 if (item == null) {
                     item = {
                         name: "??",
@@ -379,9 +406,9 @@ function parseRecipe(text: string): ParsedRecipe {
                 }
                 item.additional_steps.push(remaining);
                 stream.expectEnd();
-            } else {
-                throw new UnexpectedTokenError("indent=" + indent, "indent<=2", stream.peek());
             }
+
+            if (indent > 2) throw new UnexpectedTokenError("indent=" + indent, "indent<=2", stream.peek());
         } catch (e) {
             if (e instanceof EOLError || e instanceof UnexpectedTokenError) {
                 // Ok, parse error
