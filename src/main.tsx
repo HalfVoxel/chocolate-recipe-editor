@@ -2,13 +2,14 @@ import CodeMirror from "codemirror";
 import { StringStream } from "codemirror"
 import "codemirror/addon/mode/simple.js"
 import "codemirror/addon/mode/overlay.js"
+import "codemirror/addon/runmode/runmode.js"
 import { render, Component, createRef, Fragment } from 'inferno';
 import '../node_modules/codemirror/lib/codemirror.css';
 import './css/style.scss';
 import { DragManager } from "./dragdrop"
 import { debounce } from 'ts-debounce';
 import { MouldCavity, MouldData, RecipeData, RecipeDataServer, RecipeDataShallow, SessionServer, ServerResponse, convertServerRecipeToRecipe, convertRecipeToServerRecipe, SessionDeepServer, Session } from "./data";
-import { addRecipeMode } from "./codemirror_mode";
+import { addRecipeMode, tokenizeRecipe } from "./codemirror_mode";
 
 const codemirror: any = CodeMirror;
 addRecipeMode(codemirror);
@@ -18,6 +19,7 @@ interface RecipeProps {
     recipe: RecipeData;
     onChangeMoulds: () => void;
     onDelete: () => void;
+    onChangeRecipe: () => void;
 }
 
 interface RecipePlaintextProps {
@@ -62,6 +64,7 @@ class ParsedRecipe {
     parse_error_token: CodeMirrorToken | null = null;
     parse_error_line: number | null = null;
     parse_error: string | null = null;
+    shells: string | null = null;
 
     totalWeight(): number {
         return this.sections.map(section => section.items.map(s => s.final_amount ? s.final_amount.value : 0).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
@@ -128,7 +131,7 @@ class TokenStream {
 
     expect(type: string) {
         let res = this.next();
-        if (res.type != type) throw new UnexpectedTokenError(res.type, type, res);
+        if (res.type.split(" ").indexOf(type) == -1) throw new UnexpectedTokenError(res.type, type, res);
         return res;
     }
 
@@ -166,8 +169,6 @@ class RecipeAdder extends Component<RecipeAdderProps> {
     updateRecipes() {
         fetch("data/recipes").then(r => r.json()).then((response: ServerResponse<RecipeDataShallow[]>) => {
             const recipes = response.data;
-            console.log("Got response " + recipes);
-
             recipes.unshift({ id: null, name: "New Recipe", last_edited: null });
             this.setState({ recipes });
         }).catch(e => {
@@ -181,8 +182,6 @@ class RecipeAdder extends Component<RecipeAdderProps> {
             this.props.onCreate();
         } else {
             fetch("data/recipes/" + recipe.id).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
-                console.log("Got response " + response.data);
-
                 this.setState({ adding: false });
                 this.props.onAdd(convertServerRecipeToRecipe(response.data, this.props.moulds));
             }).catch(e => {
@@ -278,6 +277,133 @@ class RecipePlaintext extends Component<RecipePlaintextProps> {
     }
 }
 
+function parseRecipe(text: string): ParsedRecipe {
+    let tokens = tokenizeRecipe(text);
+    let section: ParsedRecipeSection | null = null;
+    let item: ParsedRecipeItem | null = null;
+    let parsed = new ParsedRecipe();
+    parsed.parse_success = true;
+    let lineNumber = -1;
+
+    tokens.forEach(line => {
+        lineNumber++;
+        // while(line.length > 0 && (line[line.length-1].type == "whitespace" || line[line.length-1].type == "twotabs")) line.splice(0, 1);
+        const stream = new TokenStream(line);
+
+        try {
+
+            let indent = 0;
+            while (stream.peek() && (stream.peek()!.type == "whitespace" || stream.peek()!.type == "twotabs")) {
+                indent += stream.peek()!.type == "twotabs" ? 2 : 1;
+                stream.next();
+            }
+
+            if (stream.isAtEnd()) return;
+
+            if (indent == 0) {
+                const headerType = stream.peek()?.type;
+                if (headerType == "recipe-header") {
+                    // Header
+                    section = {
+                        name: stream.expect("recipe-header").string,
+                        items: [],
+                    }
+                    item = null;
+                    parsed.sections.push(section);
+                    stream.expectEnd();
+                } else if (headerType == "shell-header") {
+                    if (parsed.shells) {
+                        throw new UnexpectedTokenError("shell info", "already have shell info", stream.peek());
+                    }
+                    stream.expect("shell-header");
+                    parsed.shells = stream.expect("shell-type").string;
+                } else {
+                    // Comments
+                    stream.expect("recipe-comment-header");
+                    while (stream.peek()?.type == "recipe-comment") stream.next();
+                }
+            } else if (indent == 1) {
+                if (stream.peek()?.type == "recipe-comment") {
+                    while (stream.peek()?.type == "recipe-comment") stream.next();
+                    stream.expectEnd();
+                } else {
+                    let first = stream.expect("recipe-measurement");
+                    let measurement = null;
+                    if (first && first.type == "recipe-measurement") {
+                        const matches = first.string.match(/^([0-9\.]+)(.*)$/);
+                        const value = parseFloat(matches![1]);
+                        measurement = {
+                            value: value,
+                            unit: matches![2],
+                            original_value: value,
+                            multiplier: 1.0,
+                        };
+                    }
+                    let name = stream.expect("recipe-name");
+                    item = {
+                        name: name.string,
+                        amount: measurement,
+                        additional_steps: [],
+                        final_amount: measurement,
+                    };
+                    section!.items.push(item);
+                    stream.expectEnd();
+                }
+            } else if (indent == 2) {
+                if (item == null) {
+                    item = {
+                        name: "??",
+                        amount: null,
+                        additional_steps: [],
+                        final_amount: null,
+                    };
+                    section!.items.push(item);
+                }
+
+                let index = stream.index;
+                let remaining = stream.convert_remaining_to_string();
+                stream.index = index;
+                let name = stream.expect("recipe-name");
+                let last = stream.peek();
+                if (last && last.type == "keyword-to") {
+                    stream.next();
+                    const matches = stream.expect("recipe-measurement").string.match(/^([0-9\.]+)(.*)$/);
+                    const value = parseFloat(matches![1]);
+                    const measurement = {
+                        value: value,
+                        unit: matches![2],
+                        original_value: value,
+                        multiplier: 1.0,
+                    };
+                    item.final_amount = measurement;
+                }
+                item.additional_steps.push(remaining);
+                stream.expectEnd();
+            } else {
+                throw new UnexpectedTokenError("indent=" + indent, "indent<=2", stream.peek());
+            }
+        } catch (e) {
+            if (e instanceof EOLError || e instanceof UnexpectedTokenError) {
+                // Ok, parse error
+                // Continue to next line
+                parsed.parse_success = false;
+                if (e instanceof UnexpectedTokenError) {
+                    parsed.parse_error_token = e.token;
+                    parsed.parse_error_line = lineNumber;
+                    parsed.parse_error = "Unexpected token";
+                } else {
+                    parsed.parse_error_line = lineNumber;
+                    parsed.parse_error = "Unexpected end of line";
+                }
+            } else {
+                throw e;
+            }
+            console.log("Failure ", e);
+        }
+    });
+    return parsed;
+}
+
 class Recipe extends Component<RecipeProps> {
     textarea: any;
     state: { recipe: RecipeData, manualLeftover: string };
@@ -288,6 +414,7 @@ class Recipe extends Component<RecipeProps> {
     parsed_recipe: ParsedRecipe = new ParsedRecipe();
     last_parsed_recipe: ParsedRecipe = new ParsedRecipe();
     debouncedSave = debounce(() => this.save(), SavingInterval);
+    debouncedUpdateUI = debounce(() => this.updateUICallback(), 200);
 
     constructor(props: RecipeProps) {
         super(props);
@@ -303,6 +430,7 @@ class Recipe extends Component<RecipeProps> {
         this.setState({ recipe });
         if (this.props.onChangeMoulds) this.props.onChangeMoulds();
         this.debouncedSave();
+        this.debouncedUpdateUI();
     }
 
     addMould(mould: MouldData) {
@@ -311,11 +439,17 @@ class Recipe extends Component<RecipeProps> {
         this.setState({ recipe });
         if (this.props.onChangeMoulds) this.props.onChangeMoulds();
         this.debouncedSave();
+        this.debouncedUpdateUI();
+    }
+
+    updateUICallback() {
+        this.state.recipe.recipe = this.codemirror.getValue();
+        this.props.onChangeRecipe();
     }
 
     save() {
         if (this.saving) return;
-        this.state.recipe.recipe = this.codemirror.getValue();
+        this.updateUICallback();
         fetch("data/recipes/" + this.state.recipe.id, {
             "method": "UPDATE",
             headers: { "Content-Type": "application/json" },
@@ -348,7 +482,7 @@ class Recipe extends Component<RecipeProps> {
                             return "error-token";
                         }
                         // console.log("Emitting...", stream.pos);
-                        console.log("Token", this.last_parsed_recipe.parse_error_token?.start);
+                        // console.log("Token", this.last_parsed_recipe.parse_error_token?.start, stream.pos);
                         stream.next();
                     } else {
                         if (stream.pos == stream.string.length - 1 && this.codemirror.getCursor().line != this.last_parsed_recipe.parse_error_line) {
@@ -365,14 +499,11 @@ class Recipe extends Component<RecipeProps> {
         };
         this.codemirror.addOverlay(mustacheOverlay);
 
-        // const refreshOverlay = () => {
-        //     this.codemirror.removeOverlay(mustacheOverlay);
-        //     this.codemirror.addOverlay(mustacheOverlay);
-        // }
-
         this.codemirror.on("change", () => {
             this.setState({});
             this.debouncedSave();
+            this.debouncedUpdateUI();
+            console.log("Changed recipe");
             //this.parseRecipe(this.codemirror.getValue());
         });
 
@@ -442,113 +573,6 @@ class Recipe extends Component<RecipeProps> {
         }
     }
 
-    parseRecipe(text: string) {
-        let tokens = this.getTokens();
-        let section: ParsedRecipeSection | null = null;
-        let item: ParsedRecipeItem | null = null;
-        let parsed = new ParsedRecipe();
-        parsed.parse_success = true;
-        let lineNumber = -1;
-        tokens.forEach(line => {
-            lineNumber++;
-            // while(line.length > 0 && (line[line.length-1].type == "whitespace" || line[line.length-1].type == "twotabs")) line.splice(0, 1);
-            const stream = new TokenStream(line);
-
-            try {
-
-                let indent = 0;
-                while (stream.peek() && (stream.peek()!.type == "whitespace" || stream.peek()!.type == "twotabs")) {
-                    indent += stream.peek()!.type == "twotabs" ? 2 : 1;
-                    stream.next();
-                }
-
-                if (stream.isAtEnd()) return;
-
-                if (indent == 0) {
-                    // Header
-                    section = {
-                        name: stream.expect("recipe-header").string,
-                        items: [],
-                    }
-                    item = null;
-                    parsed.sections.push(section);
-                    stream.expectEnd();
-                } else if (indent == 1) {
-                    let first = stream.expect("recipe-measurement");
-                    let measurement = null;
-                    if (first && first.type == "recipe-measurement") {
-                        const matches = first.string.match(/^([0-9\.]+)(.*)$/);
-                        const value = parseFloat(matches![1]);
-                        measurement = {
-                            value: value,
-                            unit: matches![2],
-                            original_value: value,
-                            multiplier: 1.0,
-                        };
-                    }
-                    let name = stream.expect("recipe-name");
-                    item = {
-                        name: name.string,
-                        amount: measurement,
-                        additional_steps: [],
-                        final_amount: measurement,
-                    };
-                    section!.items.push(item);
-                    stream.expectEnd();
-                } else if (indent == 2) {
-                    if (item == null) {
-                        item = {
-                            name: "??",
-                            amount: null,
-                            additional_steps: [],
-                            final_amount: null,
-                        };
-                        section!.items.push(item);
-                    }
-
-                    let index = stream.index;
-                    let remaining = stream.convert_remaining_to_string();
-                    stream.index = index;
-                    let name = stream.expect("recipe-name");
-                    let last = stream.peek();
-                    if (last && last.type == "keyword-to") {
-                        stream.next();
-                        const matches = stream.expect("recipe-measurement").string.match(/^([0-9\.]+)(.*)$/);
-                        const value = parseFloat(matches![1]);
-                        const measurement = {
-                            value: value,
-                            unit: matches![2],
-                            original_value: value,
-                            multiplier: 1.0,
-                        };
-                        item.final_amount = measurement;
-                    }
-                    item.additional_steps.push(remaining);
-                    stream.expectEnd();
-                } else {
-                    throw new UnexpectedTokenError("indent=" + indent, "indent<=2", stream.peek());
-                }
-            } catch (e) {
-                if (e instanceof EOLError || e instanceof UnexpectedTokenError) {
-                    // Ok, parse error
-                    // Continue to next line
-                    parsed.parse_success = false;
-                    if (e instanceof UnexpectedTokenError) {
-                        parsed.parse_error_token = e.token;
-                        parsed.parse_error_line = lineNumber;
-                        parsed.parse_error = "Unexpected token";
-                    } else {
-                        parsed.parse_error_line = lineNumber;
-                        parsed.parse_error = "Unexpected end of line";
-                    }
-                } else {
-                    throw e;
-                }
-            }
-        });
-        return parsed;
-    }
-
     mould_weight_model(recipe: RecipeData) {
         let result = 0
         for (const mould of recipe.moulds) {
@@ -565,7 +589,7 @@ class Recipe extends Component<RecipeProps> {
     rebalance(weight: number) {
         if (weight <= 0) return;
 
-        const parsed = this.parseRecipe(this.codemirror.getValue());
+        const parsed = parseRecipe(this.codemirror.getValue());
         if (parsed.parse_success) {
             this.findExactValues(parsed, this.parsed_recipe);
             this.parsed_recipe = parsed;
@@ -607,14 +631,13 @@ class Recipe extends Component<RecipeProps> {
     }
 
     render() {
-        if (this.codemirror) {
-            const parsed = this.parseRecipe(this.codemirror.getValue());
-            if (parsed.parse_success) {
-                this.findExactValues(parsed, this.parsed_recipe);
-                this.parsed_recipe = parsed;
-            }
-            this.last_parsed_recipe = parsed;
+        // Note: this.codemirror will be null the first time render is called
+        const parsed = parseRecipe(this.codemirror ? this.codemirror.getValue() : this.state.recipe.recipe);
+        if (parsed.parse_success) {
+            this.findExactValues(parsed, this.parsed_recipe);
+            this.parsed_recipe = parsed;
         }
+        this.last_parsed_recipe = parsed;
 
         const model_weight = this.mould_weight_model(this.state.recipe);
 
@@ -744,7 +767,6 @@ class RecipeDatabase {
         const r = await fetch("data/sessions/deep");
         const moulds = await this.moulds;
         const response: ServerResponse<SessionDeepServer[]> = await r.json();
-        console.log(response);
         const sessions = response.data.map(s => {
             return {
                 ...s,
@@ -836,7 +858,7 @@ class App extends Component {
             recipe.moulds.forEach(mould => {
                 usage[mould.id] = (usage[mould.id] || 0) + 1;
             })
-        })
+        });
         return usage;
     }
 
@@ -919,25 +941,55 @@ class App extends Component {
         });
     }
 
+    calculateMouldTemperingAmounts(recipes: RecipeData[]) {
+        const amounts: { [id: string]: number; } = {};
+        for (const recipe of recipes) {
+            let parsed = parseRecipe(recipe.recipe);
+            let shell = parsed.shells;
+            if (!shell) shell = "Unspecified";
+
+            if (typeof amounts[shell] === "undefined") {
+                amounts[shell] = 0;
+            }
+            amounts[shell] += recipe.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 500 : 400).reduce((a, b) => a + b, 0);
+        }
+
+        const result = [];
+        for (const shell in amounts) {
+            result.push({ "shell": shell, "mass": amounts[shell] });
+        }
+        return result;
+    }
+
     render() {
         let mouldUsage = this.calculateMouldUsage();
-        console.log(mouldUsage);
 
         if (this.state.session) {
             const recipes = this.state.session.recipes;
+            const temperingAmount = this.calculateMouldTemperingAmounts(recipes);
             if (this.state.mode == DisplayMode.Normal) {
                 return (
                     <div class="recipe-editor">
-                        <div class="moulds" ref={this.moulds_holder}>
-                            {this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />))}
+                        <div class="sidebar">
+                            <div class="moulds" ref={this.moulds_holder}>
+                                {this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />))}
+                            </div>
                             <div class="stats">
                                 <h4>Tempering chocolate</h4>
-                                <span>{recipes.map(r => r.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 500 : 400).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0)}g</span>
+                                {temperingAmount.map(x =>
+                                    <div>
+                                        <h5>{x.shell}</h5>
+                                        <div><span>Total: {x.mass} g</span></div>
+                                        <div><span>Heating: {x.mass * (3 / 4)} g</span></div>
+                                        <div><span>Cooling: {x.mass * (1 / 4)} g</span></div>
+                                    </div>
+                                )}
+                                {/* <span>{recipes.map(r => r.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 500 : 400).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0)}g</span> */}
                             </div>
-                            <a role="button" class="btn-recipe" onClick={() => this.setState({ mode: DisplayMode.PlainText })}><span>View as plain text</span></a>
+                            <a role="button" class="btn-sidebar" onClick={() => this.setState({ mode: DisplayMode.PlainText })}><span>View as plain text</span></a>
                         </div>
                         <div class="recipes" ref={this.recipes_holder}>
-                            {recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />))}
+                            {recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onChangeRecipe={() => this.setState({})} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />))}
                             <RecipeAdder moulds={this.state.moulds} onAdd={recipe => this.loadRecipe(recipe)} onCreate={() => this.createNewRecipe()} />
                         </div>
                     </div>

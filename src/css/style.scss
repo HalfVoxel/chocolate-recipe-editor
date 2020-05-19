@@ -27,12 +27,70 @@ body {
 }
 
 .cm-error-token {
-    border-bottom: 2px solid red;
+    border-bottom: 2px solid red !important;
 }
 
 .recipe-editor {
     display: flex;
     flex-direction: row;
+}
+
+.cm-shell-header {
+    color: $dark1;
+    font-weight: bold;
+}
+
+.cm-shell-type {
+    background: $brown3;
+    border-radius: 3px;
+    padding: 1px 3px;
+    color: white;
+}
+
+.cm-shell-type-white {
+    background: none;
+    border: 1px solid black;
+    color: black;
+    z-index: -1;
+}
+
+.cm-recipe-comment-header {
+    color: rgb(70, 36, 148);
+}
+
+.cm-recipe-comment {
+    color: rgb(70, 36, 148);
+}
+
+.CodeMirror-line {
+    z-index: 0 !important;
+}
+
+.CodeMirror-selected {
+    background: rgba(0, 0, 0, 0.1) !important;
+}
+
+.CodeMirror-focused .CodeMirror-selected {
+    background: rgba(0.1, 0, 0, 0.15) !important;
+}
+
+.cm-shell-type-dark {
+    background: rgb(49, 28, 17);
+}
+
+.cm-shell-type-semi-dark {
+    background: rgb(97, 50, 25);
+}
+
+.cm-shell-type-milk {
+    background: $brown3;
+}
+
+.sidebar {
+	display: flex;
+	flex-direction: column;
+    flex-grow: 0;
+    flex-shrink: 0;
 }
 
 .moulds {
@@ -57,7 +115,7 @@ body {
     padding-right: 6px;
     margin: 2px;
     position: relative;
-    width: 132px;
+    min-width: 132px;
 
     .mould-icon {
         display: flex;
@@ -303,9 +361,14 @@ body {
     background: desaturate($brown3, 100%);
 }
 
+.btn-sidebar {
+    @extend .btn-recipe;
+    margin: 2px;
+}
+
 .stats {
 	font-family: 'Bitter';
-	padding: 4px;
+	padding: 6px;
 	background: $brown3;
 	border-radius: 3px;
 	margin: 2px;
@@ -317,6 +380,24 @@ body {
         padding: 0px;
         margin: 0px;
         margin-bottom: 2px;
+    }
+
+    > div:not(:last-child) {
+        /* background: #935C41; */
+        border-bottom: 2px solid white;
+        padding-bottom: 4px;
+    }
+
+    h5 {
+        margin-top: 5px;
+        margin-left: 0px;
+        text-transform: capitalize;
+        margin-bottom: 0px;
+    }
+
+    span {
+        font-size: 14px;
+        margin-left: 8px;
     }
 }
 
