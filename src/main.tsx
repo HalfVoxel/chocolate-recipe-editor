@@ -243,7 +243,7 @@ class RecipePlaintext extends Component<RecipePlaintextProps> {
             <div class="recipe-plaintext">
                 <h3>{recipe.name}</h3>
                 <span>{"\t"}Formar: {recipe.moulds.map(m => m.name).join(", ")}<br/></span>
-                {recipe.recipe.split("\n").map(line => (<span>{"\t" + line}<br/></span>)}
+                {recipe.recipe.split("\n").map(line => (<span>{"\t" + line}<br/></span>))}
             </div>
         );
     }
