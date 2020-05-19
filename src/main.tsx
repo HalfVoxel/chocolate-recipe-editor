@@ -227,12 +227,12 @@ class SessionList extends Component<SessionListProps> {
         return (<div class="session-list">
             {
                 this.state.sessions.map(session =>
-                    (<Fragment>
-                        <h2><a href={"/" + session.id}>{session.name} ({toLocalDateString(new Date(session.last_edited))})</a></h2>
+                    (<div class="session-list-item">
+                        <a href={"/" + session.id}><h2>{session.name} ({toLocalDateString(new Date(session.last_edited))})</h2></a>
                         <ul>
                             {session.recipes.map(recipe => <li><a href={"/recipes/" + recipe.id}>{recipe.name}</a></li>)}
                         </ul>
-                    </Fragment>)
+                    </div>)
                 )
             }
         </div>);

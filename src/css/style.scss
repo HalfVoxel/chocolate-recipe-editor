@@ -55,11 +55,12 @@ body {
 }
 
 .cm-recipe-comment-header {
-    color: rgb(70, 36, 148);
+    font-weight: bold;
+    color: rgb(148, 36, 83);
 }
 
 .cm-recipe-comment {
-    color: rgb(70, 36, 148);
+    color: rgb(148, 36, 83);
 }
 
 .CodeMirror-line {
@@ -403,4 +404,48 @@ body {
 
 .recipe-plaintext {
     white-space: pre;
+}
+
+.session-list {
+    font-family: "Bitter";
+
+    .session-list-item {
+        box-shadow: 0px 0px 8px 0px rgba(0,0,0,0.34);
+        display: block;
+        border-radius: 3px;
+        width: 600px;
+        overflow: hidden;
+        background: #EAE7DC;
+        margin: 10px;
+
+        a {
+            text-decoration: none;
+        }
+        
+        h2 {
+            display: block;
+            margin: 0px;
+            padding: 0px;
+            width: 100%;
+            padding: 10px;
+            background: $brown3;
+            transition: 100ms background;
+
+            &:hover {
+                background: darken($brown3, 10%);
+            }
+
+            color: white;
+            text-decoration: none;
+        }
+
+        ul {
+            list-style: none;
+        }
+    
+        li a {
+            text-decoration: underline;
+            color: $brown3;
+        }
+    }
 }
