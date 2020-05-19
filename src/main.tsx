@@ -978,7 +978,7 @@ class App extends Component {
             if (typeof amounts[shell] === "undefined") {
                 amounts[shell] = 0;
             }
-            amounts[shell] += recipe.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 500 : 400).reduce((a, b) => a + b, 0);
+            amounts[shell] += recipe.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 300 : 200).reduce((a, b) => a + b, 0);
         }
 
         const result = [];
