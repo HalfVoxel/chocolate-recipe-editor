@@ -45,8 +45,25 @@ export interface RecipeDataShallow {
 export interface SessionServer {
     id: number;
     name: string;
+    created_date: string;
     last_edited: string;
     recipes: number[];
+}
+
+export interface SessionDeepServer {
+    id: number;
+    name: string;
+    created_date: string;
+    last_edited: string;
+    recipes: RecipeDataServer[];
+}
+
+export interface Session {
+    id: number;
+    name: string;
+    created_date: string;
+    last_edited: string;
+    recipes: RecipeData[];
 }
 
 export interface ServerResponse<T> {

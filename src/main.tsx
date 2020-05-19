@@ -7,7 +7,7 @@ import '../node_modules/codemirror/lib/codemirror.css';
 import './css/style.scss';
 import { DragManager } from "./dragdrop"
 import { debounce } from 'ts-debounce';
-import { MouldCavity, MouldData, RecipeData, RecipeDataServer, RecipeDataShallow, SessionServer, ServerResponse, convertServerRecipeToRecipe, convertRecipeToServerRecipe } from "./data";
+import { MouldCavity, MouldData, RecipeData, RecipeDataServer, RecipeDataShallow, SessionServer, ServerResponse, convertServerRecipeToRecipe, convertRecipeToServerRecipe, SessionDeepServer, Session } from "./data";
 import { addRecipeMode } from "./codemirror_mode";
 
 const codemirror : any = CodeMirror;
@@ -208,6 +208,35 @@ class RecipeAdder extends Component<RecipeAdderProps> {
                 </div>
             )
         }
+    }
+}
+
+interface SessionListProps {
+    database: RecipeDatabase;
+}
+
+class SessionList extends Component<SessionListProps> {
+    state: { sessions: Session[] } = { sessions: [] };
+
+    componentDidMount() {
+        this.props.database.loadAllSessionsDeep().then(sessions => {
+            this.setState({ sessions });
+        });
+    }
+
+    render() {
+        return (<div class="session-list">
+            {
+                this.state.sessions.map(session =>
+                    (<Fragment>
+                        <h2><a href={"/" + session.id}>{session.name} ({toLocalDateString(new Date(session.last_edited))})</a></h2>
+                        <ul>
+                            {session.recipes.map(recipe => <li><a href={"/recipes/" + recipe.id}>{recipe.name}</a></li>)}
+                        </ul>
+                    </Fragment>)
+                )
+            }
+        </div>);
     }
 }
 
@@ -692,8 +721,59 @@ function toLocalDateString(date: Date) {
     return date.toISOString().split('T')[0]
 }
 
+class RecipeDatabase {
+    moulds: Promise<MouldData[]>;
+    private currentMoulds : MouldData[];
+
+    constructor() {
+        this.currentMoulds = [];
+        this.moulds = Promise.resolve([]);
+    }
+
+    init() {
+        this.moulds = fetch(`data/moulds`).then(r => r.json()).then((moulds: MouldData[]) => {
+            for (let i = 0; i < moulds.length; i++) {
+                moulds[i].id = i;
+            }
+            this.currentMoulds = moulds;
+            return moulds;
+        });
+    }
+
+    async loadAllSessionsDeep() : Promise<Session[]> {
+        const r = await fetch("data/sessions/deep");
+        const moulds = await this.moulds;
+        const response: ServerResponse<SessionDeepServer[]> = await r.json();
+        console.log(response);
+        const sessions = response.data.map(s => {
+            return {
+                ...s,
+                recipes: s.recipes.map(x => convertServerRecipeToRecipe(x, moulds)),
+            } as Session;
+        });
+        return sessions;
+    }
+
+    async loadSession(sessionID: number) : Promise<Session> {
+        const r = await fetch("data/sessions/" + sessionID);
+        const serverSession: ServerResponse<SessionServer> = await r.json();
+        const recipes: ServerResponse<RecipeDataServer>[] = await Promise.all(serverSession.data.recipes.map(id => fetch("data/recipes/"+id).then(r => r.json())));
+        const moulds = await this.moulds;
+        const session: Session = {
+            ...serverSession.data,
+            recipes: recipes.map(x => convertServerRecipeToRecipe(x.data, moulds)),
+        };
+        return session;
+    }
+
+    getLoadedMoulds() : MouldData[] {
+        return this.currentMoulds;
+    }
+}
+
 class App extends Component {
-    state: { recipes: RecipeData[], moulds: MouldData[], session: SessionServer|null, mode: DisplayMode };
+    state: { moulds: MouldData[], session: Session|null, mode: DisplayMode };
+    database: RecipeDatabase = new RecipeDatabase();
     recipes_holder: any;
     moulds_holder: any;
     draggable_moulds: DragManager<MouldDragData>;
@@ -701,7 +781,7 @@ class App extends Component {
 
     constructor(props: any) {
         super(props);
-        this.state = { recipes: [], moulds: [], session: null, mode: DisplayMode.Normal };
+        this.state = { moulds: [], session: null, mode: DisplayMode.Normal };
 
         this.recipes_holder = createRef();
         this.moulds_holder = createRef();
@@ -732,31 +812,27 @@ class App extends Component {
     }
 
     componentDidMount() {
+        this.database.init();
         console.log("Mounted");
-        // this.draggable.addContainer(this.recipes_holder.current);
-        fetch(`data/moulds`).then(r => r.json()).then(moulds => {
-            console.log("Got response " + moulds);
-            
-            for (let i = 0; i < moulds.length; i++) {
-                moulds[i].id = i;
-            }
-            this.setState({ moulds });
 
-            const match = window.location.pathname.match(/^\/(\d+)$/);
-            if(match) {
-                this.loadSession(parseInt(match[1]));
-            }
-        }).catch(e => {
-            console.error(e);
-            this.setState({ moulds: [] });
-        });
+        this.database.moulds.then(moulds => {
+            this.setState({ moulds });
+        })
+
+        const match = window.location.pathname.match(/^\/(\d+)$/);
+        if(match) {
+            this.loadSession(parseInt(match[1]));
+        }
     }
 
     calculateMouldUsage() : { [key: number] : number } {
+        if (!this.state.session) {
+            return {};
+        }
+
         const usage : { [key: number] : number } = {};
         this.state.moulds.forEach(mould => usage[mould.id] = 0);
-        console.log(this.state.recipes);
-        this.state.recipes.forEach(recipe => {
+        this.state.session.recipes.forEach(recipe => {
             recipe.moulds.forEach(mould => {
                 usage[mould.id] = (usage[mould.id] || 0) + 1;
             })
@@ -770,22 +846,18 @@ class App extends Component {
         this.draggable_moulds.add(element!, element, null, { container: null, mould: mouldData });
     }
 
-    loadSession(session: number) {
-        fetch("data/sessions/" + session).then(r => r.json()).then((response: ServerResponse<SessionServer>) => {
-            
-            return Promise.all(response.data.recipes.map(id => fetch("data/recipes/"+id).then(r => r.json()))).then((responses: ServerResponse<RecipeDataServer>[]) => {
-                this.setState({ session: response.data, recipes: Array.from(responses.map(x => convertServerRecipeToRecipe(x.data, this.state.moulds))) });
-            });
-        }).catch(e => {
-            console.trace(e);
+    loadSession(sessionID: number) {
+        this.database.loadSession(sessionID).then(session => {
+            this.setState({ session });
         });
     }
 
     loadRecipe(recipe: RecipeData) {
-        if (!this.state.session) throw "Cannot load recipe without a session";
-
+        const session = this.state.session;
+        if (!session) throw "Cannot load recipe without a session";
+        
         let newRecipe = { ...recipe };
-        newRecipe.session = this.state.session.id;
+        newRecipe.session = session.id;
         newRecipe.moulds = [];
 
         fetch("data/recipes", {
@@ -793,19 +865,20 @@ class App extends Component {
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify(newRecipe)
         }).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
-            this.setState({ recipes: [...this.state.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] });
+            this.setState({ recipes: [...session.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] });
         }).catch(e => {
             console.trace(e);
         });
     }
 
     createNewRecipe() {
-        if (!this.state.session) throw "Cannot load recipe without a session";
+        const session = this.state.session;
+        if (!session) throw "Cannot create recipe without a session";
 
         const recipe: RecipeData = {
             id: 0,
             name: "New Recipe",
-            session: this.state.session.id,
+            session: session.id,
             moulds: [],
             recipe: "",
             last_edited: "",
@@ -815,9 +888,7 @@ class App extends Component {
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify(recipe)
         }).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
-            console.log(response.data);
-            this.setState({ recipes: [...this.state.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] });
-            console.log(this.state.recipes);
+            this.setState({ recipes: [...session.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] });
         }).catch(e => {
             console.trace(e);
         });
@@ -839,7 +910,10 @@ class App extends Component {
         fetch("data/recipes/" + recipe.id, {
             "method": "DELETE"
         }).then(r => r.json()).then((response: ServerResponse<SessionServer>) => {
-            this.setState({ recipes: this.state.recipes.filter(x => x.id != recipe.id) });
+            const session = this.state.session;
+            if (session) {
+                this.setState({ session: { ...session, recipes: session.recipes.filter(x => x.id != recipe.id) }});
+            }
         }).catch(e => {
             console.trace(e);
         });
@@ -850,6 +924,7 @@ class App extends Component {
         console.log(mouldUsage);
 
         if (this.state.session) {
+            const recipes = this.state.session.recipes;
             if (this.state.mode == DisplayMode.Normal) {
                 return (
                     <div class="recipe-editor">
@@ -857,12 +932,12 @@ class App extends Component {
                             { this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element:any) => this.addDraggableMould(mould, element as Mould)} />)) }
                             <div class="stats">
                                 <h4>Tempering chocolate</h4>
-                                <span>{ this.state.recipes.map(r => r.moulds.map(m => m.layout[0]*m.layout[1] > 30 ? 500 : 400).reduce((a,b)=>a+b, 0)).reduce((a,b)=>a+b, 0) }g</span>
+                                <span>{ recipes.map(r => r.moulds.map(m => m.layout[0]*m.layout[1] > 30 ? 500 : 400).reduce((a,b)=>a+b, 0)).reduce((a,b)=>a+b, 0) }g</span>
                             </div>
                             <a role="button" class="btn-recipe" onClick={() => this.setState({ mode: DisplayMode.PlainText }) }><span>View as plain text</span></a>
                         </div>
                         <div class="recipes" ref={this.recipes_holder}>
-                            { this.state.recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />)) }
+                            { recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />)) }
                             <RecipeAdder moulds={this.state.moulds} onAdd={recipe => this.loadRecipe(recipe)} onCreate={() => this.createNewRecipe()} />
                         </div>
                     </div>
@@ -872,14 +947,17 @@ class App extends Component {
                     <div class="recipe-editor">
                         <div class="recipes-plaintext">
                             <h1>{this.state.session.name} {toLocalDateString(new Date(this.state.session.last_edited))}</h1>
-                            { this.state.recipes.map(recipe => (<RecipePlaintext recipe={recipe} key={recipe.id} />)) }
+                            { recipes.map(recipe => (<RecipePlaintext recipe={recipe} key={recipe.id} />)) }
                         </div>
                     </div>
                 );
             }
         } else {
             return (
-                <NewSession onCreate={name=>this.createNewSession(name)} />
+                <Fragment>
+                    <NewSession onCreate={name=>this.createNewSession(name)} />
+                    <SessionList database={this.database} />
+                </Fragment>
             )
         }
     }
