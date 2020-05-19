@@ -37,9 +37,9 @@ export interface RecipeDataServer {
 }
 
 export interface RecipeDataShallow {
-    id: number|null;
+    id: number | null;
     name: string;
-    last_edited: string|null;
+    last_edited: string | null;
 }
 
 export interface SessionServer {
@@ -79,13 +79,13 @@ function notUndefinedOrThrow<T>(x: T | undefined): x is T {
     return true;
 }
 
-export function convertServerRecipeToRecipe(recipe: RecipeDataServer, moulds: MouldData[]) : RecipeData {
+export function convertServerRecipeToRecipe(recipe: RecipeDataServer, moulds: MouldData[]): RecipeData {
     let clone: RecipeData = { ...recipe, moulds: Array.from(recipe.moulds.map(m => moulds.find(x => x.id == m)).filter(notUndefinedOrThrow)) };
     return clone;
 
 }
 
-export function convertRecipeToServerRecipe(recipe: RecipeData) : RecipeDataServer {
+export function convertRecipeToServerRecipe(recipe: RecipeData): RecipeDataServer {
     let clone: RecipeDataServer = { ...recipe, moulds: Array.from(recipe.moulds.map(m => m.id)) };
     return clone;
 }

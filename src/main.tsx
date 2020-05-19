@@ -10,14 +10,14 @@ import { debounce } from 'ts-debounce';
 import { MouldCavity, MouldData, RecipeData, RecipeDataServer, RecipeDataShallow, SessionServer, ServerResponse, convertServerRecipeToRecipe, convertRecipeToServerRecipe, SessionDeepServer, Session } from "./data";
 import { addRecipeMode } from "./codemirror_mode";
 
-const codemirror : any = CodeMirror;
+const codemirror: any = CodeMirror;
 addRecipeMode(codemirror);
 
 interface RecipeProps {
     draggable_moulds: DragManager<MouldDragData>;
     recipe: RecipeData;
-    onChangeMoulds: ()=>void;
-    onDelete: ()=>void;
+    onChangeMoulds: () => void;
+    onDelete: () => void;
 }
 
 interface RecipePlaintextProps {
@@ -26,8 +26,8 @@ interface RecipePlaintextProps {
 
 
 interface MouldDragData {
-    container: Recipe|null;
-    mould: MouldData|null;
+    container: Recipe | null;
+    mould: MouldData | null;
 }
 
 interface Measurement {
@@ -38,10 +38,10 @@ interface Measurement {
 }
 
 interface ParsedRecipeItem {
-    amount: Measurement|null;
+    amount: Measurement | null;
     name: string;
     additional_steps: string[];
-    final_amount: Measurement|null;
+    final_amount: Measurement | null;
 }
 
 interface ParsedRecipeSection {
@@ -49,7 +49,7 @@ interface ParsedRecipeSection {
     items: ParsedRecipeItem[];
 }
 
-function prettyPrintNumber(val: number) : string {
+function prettyPrintNumber(val: number): string {
     const aval = Math.abs(val);
     if (aval >= 9.5) return val.toFixed(0);
     if (aval >= 1) return val.toFixed(1);
@@ -59,16 +59,16 @@ function prettyPrintNumber(val: number) : string {
 class ParsedRecipe {
     sections: ParsedRecipeSection[] = [];
     parse_success: boolean = true;
-    parse_error_token: CodeMirrorToken|null = null;
-    parse_error_line: number|null = null;
-    parse_error: string|null = null;
+    parse_error_token: CodeMirrorToken | null = null;
+    parse_error_line: number | null = null;
+    parse_error: string | null = null;
 
     totalWeight(): number {
-        return this.sections.map(section => section.items.map(s => s.final_amount ? s.final_amount.value : 0).reduce((a,b)=> a+b, 0)).reduce((a,b) => a+b, 0);
+        return this.sections.map(section => section.items.map(s => s.final_amount ? s.final_amount.value : 0).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
     }
 
     totalWeightExact(): number {
-        return this.sections.map(section => section.items.map(s => s.amount ? s.amount.original_value*s.amount.multiplier : 0).reduce((a,b)=> a+b, 0)).reduce((a,b) => a+b, 0);
+        return this.sections.map(section => section.items.map(s => s.amount ? s.amount.original_value * s.amount.multiplier : 0).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
     }
 
     prettyPrint(): string {
@@ -94,12 +94,12 @@ interface CodeMirrorToken {
     state: string;
 }
 
-class EOLError {}
+class EOLError { }
 class UnexpectedTokenError {
     found: string;
     expected: string;
-    token: CodeMirrorToken|null;
-    constructor(found: string, expected: string, token: CodeMirrorToken|null) {
+    token: CodeMirrorToken | null;
+    constructor(found: string, expected: string, token: CodeMirrorToken | null) {
         this.found = found;
         this.expected = expected;
         this.token = token;
@@ -138,7 +138,7 @@ class TokenStream {
 
     convert_remaining_to_string() {
         let result = "";
-        while(!this.isAtEnd()) {
+        while (!this.isAtEnd()) {
             result += this.next().string;
         }
         return result;
@@ -150,14 +150,14 @@ class TokenStream {
 }
 
 interface RecipeAdderProps {
-    onAdd: (recipe: RecipeData)=>void;
-    onCreate: ()=>void;
+    onAdd: (recipe: RecipeData) => void;
+    onCreate: () => void;
     moulds: MouldData[],
 }
 
 
 class RecipeAdder extends Component<RecipeAdderProps> {
-    state : { adding: boolean, recipes: RecipeDataShallow[]|null } = { adding: false, recipes: null };
+    state: { adding: boolean, recipes: RecipeDataShallow[] | null } = { adding: false, recipes: null };
 
     componentDidMount() {
         this.updateRecipes();
@@ -168,7 +168,7 @@ class RecipeAdder extends Component<RecipeAdderProps> {
             const recipes = response.data;
             console.log("Got response " + recipes);
 
-            recipes.unshift({ id: null, name: "New Recipe", last_edited: null});
+            recipes.unshift({ id: null, name: "New Recipe", last_edited: null });
             this.setState({ recipes });
         }).catch(e => {
             console.error(e);
@@ -182,7 +182,7 @@ class RecipeAdder extends Component<RecipeAdderProps> {
         } else {
             fetch("data/recipes/" + recipe.id).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
                 console.log("Got response " + response.data);
-                
+
                 this.setState({ adding: false });
                 this.props.onAdd(convertServerRecipeToRecipe(response.data, this.props.moulds));
             }).catch(e => {
@@ -195,7 +195,7 @@ class RecipeAdder extends Component<RecipeAdderProps> {
     render() {
         if (!this.state.adding) {
             return (
-                <a role="button" onClick={()=>{ this.updateRecipes(); this.setState({adding: true})}} class="recipe-adder recipe-adder-dashed recipe-adder-big-plus">
+                <a role="button" onClick={() => { this.updateRecipes(); this.setState({ adding: true }) }} class="recipe-adder recipe-adder-dashed recipe-adder-big-plus">
                     +
                 </a>
             )
@@ -203,7 +203,7 @@ class RecipeAdder extends Component<RecipeAdderProps> {
             return (
                 <div class="recipe-adder">
                     <div class="recipe-adder-recipe-list">
-                        { this.state.recipes?.map(recipe => (<a onClick={()=> this.loadRecipe(recipe) }><i class="fas fa-file-alt"></i> {recipe.name}</a>))}
+                        {this.state.recipes?.map(recipe => (<a onClick={() => this.loadRecipe(recipe)}><i class="fas fa-file-alt"></i> {recipe.name}</a>))}
                     </div>
                 </div>
             )
@@ -241,7 +241,7 @@ class SessionList extends Component<SessionListProps> {
 }
 
 interface NewSessionProps {
-    onCreate: (name: string)=>void;
+    onCreate: (name: string) => void;
 }
 
 class NewSession extends Component<NewSessionProps> {
@@ -251,8 +251,8 @@ class NewSession extends Component<NewSessionProps> {
         return (
             <div class="new-session">
                 <h2>Create new session</h2>
-                <input type="text" placeholder="Name" onInput={ev => this.setState({name: (ev.target as HTMLInputElement).value})} value={this.state.name}></input>
-                <a role="button" onClick={()=>this.props.onCreate(this.state.name)}>Create</a>
+                <input type="text" placeholder="Name" onInput={ev => this.setState({ name: (ev.target as HTMLInputElement).value })} value={this.state.name}></input>
+                <a role="button" onClick={() => this.props.onCreate(this.state.name)}>Create</a>
             </div>
         )
     }
@@ -271,8 +271,8 @@ class RecipePlaintext extends Component<RecipePlaintextProps> {
         return (
             <div class="recipe-plaintext">
                 <h3>{recipe.name}</h3>
-                <span>{"\t"}Formar: {recipe.moulds.map(m => m.name).join(", ")}<br/></span>
-                {recipe.recipe.split("\n").map(line => (<span>{"\t" + line}<br/></span>))}
+                <span>{"\t"}Formar: {recipe.moulds.map(m => m.name).join(", ")}<br /></span>
+                {recipe.recipe.split("\n").map(line => (<span>{"\t" + line}<br /></span>))}
             </div>
         );
     }
@@ -296,11 +296,11 @@ class Recipe extends Component<RecipeProps> {
         this.moulds_container = createRef();
         this.inputLeftover = createRef();
     }
-    
+
     removeMould(mould: MouldData) {
         let recipe = this.state.recipe;
         recipe.moulds = recipe.moulds.filter(m => m != mould);
-        this.setState ({ recipe });
+        this.setState({ recipe });
         if (this.props.onChangeMoulds) this.props.onChangeMoulds();
         this.debouncedSave();
     }
@@ -308,7 +308,7 @@ class Recipe extends Component<RecipeProps> {
     addMould(mould: MouldData) {
         let recipe = this.state.recipe;
         recipe.moulds = recipe.moulds.concat([mould]);
-        this.setState ({ recipe });
+        this.setState({ recipe });
         if (this.props.onChangeMoulds) this.props.onChangeMoulds();
         this.debouncedSave();
     }
@@ -318,7 +318,7 @@ class Recipe extends Component<RecipeProps> {
         this.state.recipe.recipe = this.codemirror.getValue();
         fetch("data/recipes/" + this.state.recipe.id, {
             "method": "UPDATE",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(convertRecipeToServerRecipe(this.state.recipe))
         }).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
             console.log("Saved");
@@ -393,8 +393,8 @@ class Recipe extends Component<RecipeProps> {
         let element = mouldElement.element_holder.current;
         this.props.draggable_moulds.add(element!, element, null, { container: this, mould: mouldData });
     }
-    
-    getTokens() : CodeMirrorToken[][] {
+
+    getTokens(): CodeMirrorToken[][] {
         let result = [];
         for (let i = 0; i < this.codemirror.lineCount(); i++) {
             result.push(this.codemirror.getLineTokens(i, true));
@@ -416,7 +416,7 @@ class Recipe extends Component<RecipeProps> {
                     if (item.name == itemName) score += 1;
 
                     if (score >= 3) {
-                        if (Math.abs(item.amount.original_value*item.amount.multiplier - measurement.value) <= 0.5) {
+                        if (Math.abs(item.amount.original_value * item.amount.multiplier - measurement.value) <= 0.5) {
                             return item.amount;
                         }
                     }
@@ -444,8 +444,8 @@ class Recipe extends Component<RecipeProps> {
 
     parseRecipe(text: string) {
         let tokens = this.getTokens();
-        let section: ParsedRecipeSection|null = null;
-        let item: ParsedRecipeItem|null = null;
+        let section: ParsedRecipeSection | null = null;
+        let item: ParsedRecipeItem | null = null;
         let parsed = new ParsedRecipe();
         parsed.parse_success = true;
         let lineNumber = -1;
@@ -457,7 +457,7 @@ class Recipe extends Component<RecipeProps> {
             try {
 
                 let indent = 0;
-                while(stream.peek() && (stream.peek()!.type == "whitespace" || stream.peek()!.type == "twotabs")) {
+                while (stream.peek() && (stream.peek()!.type == "whitespace" || stream.peek()!.type == "twotabs")) {
                     indent += stream.peek()!.type == "twotabs" ? 2 : 1;
                     stream.next();
                 }
@@ -526,7 +526,7 @@ class Recipe extends Component<RecipeProps> {
                     item.additional_steps.push(remaining);
                     stream.expectEnd();
                 } else {
-                    throw new UnexpectedTokenError("indent="+indent, "indent<=2", stream.peek());
+                    throw new UnexpectedTokenError("indent=" + indent, "indent<=2", stream.peek());
                 }
             } catch (e) {
                 if (e instanceof EOLError || e instanceof UnexpectedTokenError) {
@@ -558,7 +558,7 @@ class Recipe extends Component<RecipeProps> {
             // const v1 = count * (weight**(2/3));
             result += v0 * 0.69 + 93;
         }
-        
+
         return result;
     }
 
@@ -577,7 +577,7 @@ class Recipe extends Component<RecipeProps> {
         let multiplier = weight / currentWeight;
 
         let largestWeight = 0;
-        for(const section of parsed.sections) {
+        for (const section of parsed.sections) {
             for (const item of section.items) {
                 if (item.amount) {
                     largestWeight = Math.max(largestWeight, item.amount.original_value * item.amount.multiplier * multiplier);
@@ -587,10 +587,10 @@ class Recipe extends Component<RecipeProps> {
 
         if (largestWeight > 100) {
             // Round up to multiples of 50
-            multiplier *= (50*Math.ceil(largestWeight / 50)) / largestWeight;
+            multiplier *= (50 * Math.ceil(largestWeight / 50)) / largestWeight;
         }
 
-        for(const section of parsed.sections) {
+        for (const section of parsed.sections) {
             for (const item of section.items) {
                 if (item.amount) {
                     item.amount.multiplier *= multiplier;
@@ -622,15 +622,15 @@ class Recipe extends Component<RecipeProps> {
         const inputText = document.activeElement === this.inputLeftover?.current ? this.state.manualLeftover : leftover;
 
         let inputLeftover = (<input
-            ref={this.inputLeftover} 
-            onInput={(ev)=> {
+            ref={this.inputLeftover}
+            onInput={(ev) => {
                 this.setState({ manualLeftover: (ev.target as HTMLInputElement).value });
                 const targetWeight = Math.max(0, model_weight - 100) + parseFloat(this.state.manualLeftover);
                 if (isFinite(targetWeight) && targetWeight > 0) {
                     this.rebalance(targetWeight);
                 }
             }}
-            onFocus={() => this.setState({manualLeftover: leftover})}
+            onFocus={() => this.setState({ manualLeftover: leftover })}
             onBlur={() => this.setState({})}
             type="text"
             style={"width: calc(" + (Math.max(1, inputText.length)) + "ch + 2px); -webkit-appearance: none; appearance: none; background: none; color: white; border: none; font-size: 12pt;"}
@@ -640,17 +640,17 @@ class Recipe extends Component<RecipeProps> {
             <div class="recipe draggable-source">
                 <div class="recipe-inner">
                     <div class="recipe-top">
-                        <input class="recipe-name" type="text" value={this.state.recipe.name} onInput={ev=> { this.state.recipe.name = (ev.target as HTMLInputElement).value; this.setState({}); this.debouncedSave(); } } />
-                        <a role="button" class="recipe-delete fas fa-trash" onClick={()=>this.delete()}></a>
+                        <input class="recipe-name" type="text" value={this.state.recipe.name} onInput={ev => { this.state.recipe.name = (ev.target as HTMLInputElement).value; this.setState({}); this.debouncedSave(); }} />
+                        <a role="button" class="recipe-delete fas fa-trash" onClick={() => this.delete()}></a>
                     </div>
                     <div class="recipe-contents">
                         <div class="recipe-moulds" ref={this.moulds_container}>
                             {
-                                this.state.recipe.moulds.length > 0 ? this.state.recipe.moulds.map(mould => <Mould mould={mould} usageCount={1} ref={(element:any) => this.addDraggableMould(mould, element as Mould)} />) : (<div class="recipe-moulds-dropzone draggable-source">Drop moulds here</div>)
+                                this.state.recipe.moulds.length > 0 ? this.state.recipe.moulds.map(mould => <Mould mould={mould} usageCount={1} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />) : (<div class="recipe-moulds-dropzone draggable-source">Drop moulds here</div>)
                             }
                         </div>
                         <div ref={this.textarea}></div>
-                        <a role="button" class={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.rebalance(model_weight) }><span>Rebalance to moulds ({model_weight.toFixed()} g)</span></a>
+                        <a role="button" class={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.rebalance(model_weight)}><span>Rebalance to moulds ({model_weight.toFixed()} g)</span></a>
                     </div>
                     <div class="recipe-bottom">
                         <div class="recipe-total">
@@ -698,11 +698,11 @@ class Mould extends Component<MouldProps> {
         let data = this.props.mould;
         return (
             <div class="mould draggable-source draggable-handle" ref={this.element_holder}>
-                <div class="mould-icon"><span class={"mould-icon-" + data.cavity.footprint}>{data.layout[0]*data.layout[1]}</span></div>
+                <div class="mould-icon"><span class={"mould-icon-" + data.cavity.footprint}>{data.layout[0] * data.layout[1]}</span></div>
                 <div class="mould-names">
                     <span class="model">{data.model}</span><span class="nickname">{titleCase(data.name)}</span>
                 </div>
-                { this.props.usageCount > 0 ? (<span class="mould-usage-count">{this.props.usageCount}</span>) : null }
+                {this.props.usageCount > 0 ? (<span class="mould-usage-count">{this.props.usageCount}</span>) : null}
             </div>
         )
     }
@@ -717,13 +717,13 @@ enum DisplayMode {
 
 function toLocalDateString(date: Date) {
     const offset = date.getTimezoneOffset()
-    date = new Date(date.getTime() + (offset*60*1000))
+    date = new Date(date.getTime() + (offset * 60 * 1000))
     return date.toISOString().split('T')[0]
 }
 
 class RecipeDatabase {
     moulds: Promise<MouldData[]>;
-    private currentMoulds : MouldData[];
+    private currentMoulds: MouldData[];
 
     constructor() {
         this.currentMoulds = [];
@@ -740,7 +740,7 @@ class RecipeDatabase {
         });
     }
 
-    async loadAllSessionsDeep() : Promise<Session[]> {
+    async loadAllSessionsDeep(): Promise<Session[]> {
         const r = await fetch("data/sessions/deep");
         const moulds = await this.moulds;
         const response: ServerResponse<SessionDeepServer[]> = await r.json();
@@ -754,10 +754,10 @@ class RecipeDatabase {
         return sessions;
     }
 
-    async loadSession(sessionID: number) : Promise<Session> {
+    async loadSession(sessionID: number): Promise<Session> {
         const r = await fetch("data/sessions/" + sessionID);
         const serverSession: ServerResponse<SessionServer> = await r.json();
-        const recipes: ServerResponse<RecipeDataServer>[] = await Promise.all(serverSession.data.recipes.map(id => fetch("data/recipes/"+id).then(r => r.json())));
+        const recipes: ServerResponse<RecipeDataServer>[] = await Promise.all(serverSession.data.recipes.map(id => fetch("data/recipes/" + id).then(r => r.json())));
         const moulds = await this.moulds;
         const session: Session = {
             ...serverSession.data,
@@ -766,13 +766,13 @@ class RecipeDatabase {
         return session;
     }
 
-    getLoadedMoulds() : MouldData[] {
+    getLoadedMoulds(): MouldData[] {
         return this.currentMoulds;
     }
 }
 
 class App extends Component {
-    state: { moulds: MouldData[], session: Session|null, mode: DisplayMode };
+    state: { moulds: MouldData[], session: Session | null, mode: DisplayMode };
     database: RecipeDatabase = new RecipeDatabase();
     recipes_holder: any;
     moulds_holder: any;
@@ -820,17 +820,17 @@ class App extends Component {
         })
 
         const match = window.location.pathname.match(/^\/(\d+)$/);
-        if(match) {
+        if (match) {
             this.loadSession(parseInt(match[1]));
         }
     }
 
-    calculateMouldUsage() : { [key: number] : number } {
+    calculateMouldUsage(): { [key: number]: number } {
         if (!this.state.session) {
             return {};
         }
 
-        const usage : { [key: number] : number } = {};
+        const usage: { [key: number]: number } = {};
         this.state.moulds.forEach(mould => usage[mould.id] = 0);
         this.state.session.recipes.forEach(recipe => {
             recipe.moulds.forEach(mould => {
@@ -855,14 +855,14 @@ class App extends Component {
     loadRecipe(recipe: RecipeData) {
         const session = this.state.session;
         if (!session) throw "Cannot load recipe without a session";
-        
+
         let newRecipe = { ...recipe };
         newRecipe.session = session.id;
         newRecipe.moulds = [];
 
         fetch("data/recipes", {
             "method": "POST",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newRecipe)
         }).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
             this.setState({ recipes: [...session.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] });
@@ -885,7 +885,7 @@ class App extends Component {
         };
         fetch("data/recipes", {
             "method": "POST",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(recipe)
         }).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
             this.setState({ recipes: [...session.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] });
@@ -897,8 +897,8 @@ class App extends Component {
     createNewSession(name: string) {
         fetch("data/sessions", {
             "method": "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({name})
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name })
         }).then(r => r.json()).then((response: ServerResponse<SessionServer>) => {
             this.setState({ recipes: [], session: response.data.id });
         }).catch(e => {
@@ -912,7 +912,7 @@ class App extends Component {
         }).then(r => r.json()).then((response: ServerResponse<SessionServer>) => {
             const session = this.state.session;
             if (session) {
-                this.setState({ session: { ...session, recipes: session.recipes.filter(x => x.id != recipe.id) }});
+                this.setState({ session: { ...session, recipes: session.recipes.filter(x => x.id != recipe.id) } });
             }
         }).catch(e => {
             console.trace(e);
@@ -929,15 +929,15 @@ class App extends Component {
                 return (
                     <div class="recipe-editor">
                         <div class="moulds" ref={this.moulds_holder}>
-                            { this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element:any) => this.addDraggableMould(mould, element as Mould)} />)) }
+                            {this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />))}
                             <div class="stats">
                                 <h4>Tempering chocolate</h4>
-                                <span>{ recipes.map(r => r.moulds.map(m => m.layout[0]*m.layout[1] > 30 ? 500 : 400).reduce((a,b)=>a+b, 0)).reduce((a,b)=>a+b, 0) }g</span>
+                                <span>{recipes.map(r => r.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 500 : 400).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0)}g</span>
                             </div>
-                            <a role="button" class="btn-recipe" onClick={() => this.setState({ mode: DisplayMode.PlainText }) }><span>View as plain text</span></a>
+                            <a role="button" class="btn-recipe" onClick={() => this.setState({ mode: DisplayMode.PlainText })}><span>View as plain text</span></a>
                         </div>
                         <div class="recipes" ref={this.recipes_holder}>
-                            { recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />)) }
+                            {recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />))}
                             <RecipeAdder moulds={this.state.moulds} onAdd={recipe => this.loadRecipe(recipe)} onCreate={() => this.createNewRecipe()} />
                         </div>
                     </div>
@@ -947,7 +947,7 @@ class App extends Component {
                     <div class="recipe-editor">
                         <div class="recipes-plaintext">
                             <h1>{this.state.session.name} {toLocalDateString(new Date(this.state.session.last_edited))}</h1>
-                            { recipes.map(recipe => (<RecipePlaintext recipe={recipe} key={recipe.id} />)) }
+                            {recipes.map(recipe => (<RecipePlaintext recipe={recipe} key={recipe.id} />))}
                         </div>
                     </div>
                 );
@@ -955,7 +955,7 @@ class App extends Component {
         } else {
             return (
                 <Fragment>
-                    <NewSession onCreate={name=>this.createNewSession(name)} />
+                    <NewSession onCreate={name => this.createNewSession(name)} />
                     <SessionList database={this.database} />
                 </Fragment>
             )
