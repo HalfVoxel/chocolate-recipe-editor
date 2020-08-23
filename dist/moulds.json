@@ -159,5 +159,21 @@
         },
         "layout": [3, 7],
         "properties": []
+    },
+    {
+        "name": "stubbe",
+        "model": "CW1535",
+        "length": 275,
+        "width": 135,
+        "height": 24,
+        "cavity": {
+            "length": 28.2,
+            "width": 28.2,
+            "height": 20.8,
+            "weight": 13.5,
+            "footprint": "circle"
+        },
+        "layout": [3, 8],
+        "properties": []
     }
 ]
