@@ -119,7 +119,7 @@ def recipe_create():
     c.execute("INSERT INTO recipes (name, last_edited, session, data) VALUES(?,?,?,?)",
               (name, datetime.now(), session, json.dumps(req_data)))
     conn.commit()
-    return recipe_view(c.lastrowid)
+    return recipe_view_json(c.lastrowid)
 
 
 @app.route('/data/recipes/<int:id>', methods=["UPDATE"])
@@ -140,7 +140,7 @@ def recipe_update(id: int):
     c.execute("UPDATE recipes SET name=?, last_edited=?, data=? where id=?",
               (name, datetime.now(), json.dumps(req_data), id))
     conn.commit()
-    return recipe_view(id)
+    return recipe_view_json(id)
 
 
 @app.route('/data/recipes/<int:id>', methods=["DELETE"])
@@ -248,7 +248,7 @@ def session_create():
     now = datetime.now()
     c.execute("INSERT INTO sessions (name, created_date, last_edited) VALUES(?,?,?)", (name, now, now))
     conn.commit()
-    return session_view(c.lastrowid)
+    return session_view_json(c.lastrowid)
 
 
 if __name__ == '__main__':

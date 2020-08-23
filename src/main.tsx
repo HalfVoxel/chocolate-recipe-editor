@@ -820,8 +820,15 @@ class RecipeDatabase {
     }
 }
 
-class App extends Component {
-    state: { moulds: MouldData[], session: Session | null, mode: DisplayMode };
+interface AppState {
+    moulds: MouldData[],
+    session: Session | null,
+    mode: DisplayMode
+}
+
+
+class App extends Component<{}, AppState> {
+    state: AppState;
     database: RecipeDatabase = new RecipeDatabase();
     recipes_holder: any;
     moulds_holder: any;
@@ -914,7 +921,7 @@ class App extends Component {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newRecipe)
         }).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
-            this.setState({ recipes: [...session.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] });
+            this.setState({ session: { ...session, recipes: [...session.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] } });
         }).catch(e => {
             console.trace(e);
         });
@@ -937,7 +944,7 @@ class App extends Component {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(recipe)
         }).then(r => r.json()).then((response: ServerResponse<RecipeDataServer>) => {
-            this.setState({ recipes: [...session.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] });
+            this.setState({ session: { ...session, recipes: [...session.recipes, convertServerRecipeToRecipe(response.data, this.state.moulds)] } });
         }).catch(e => {
             console.trace(e);
         });
@@ -949,7 +956,7 @@ class App extends Component {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name })
         }).then(r => r.json()).then((response: ServerResponse<SessionServer>) => {
-            this.setState({ recipes: [], session: response.data.id });
+            this.loadSession(response.data.id);
         }).catch(e => {
             console.trace(e);
         });
