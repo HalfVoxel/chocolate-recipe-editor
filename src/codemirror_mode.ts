@@ -173,5 +173,6 @@ export function tokenizeRecipe(value: string): Token[][] {
             }
         }
     });
+    if (currentLine.length > 0) lines.push(currentLine);
     return lines;
 }
