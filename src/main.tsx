@@ -1004,6 +1004,10 @@ class App extends Component<{}, AppState> {
             if (this.state.mode == DisplayMode.Normal) {
                 return (
                     <div class="recipe-editor">
+                        <div class="top">
+                            <a href="/" class="fas fa-arrow-left"></a>
+                            <h1>{this.state.session.name}</h1>
+                        </div>
                         <div class="sidebar">
                             <div class="moulds" ref={this.moulds_holder}>
                                 {this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />))}
