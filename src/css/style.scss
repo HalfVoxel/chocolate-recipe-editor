@@ -215,15 +215,15 @@ body {
     font-family: "Bitter";
     margin: 5px;
     height: $recipe-height;
-    display: flex;
-    height: 100%;
-    flex-direction: column;
 
     .recipe-inner {
         display: block;
         border-radius: 3px;
         background: white;
         overflow: hidden;
+        display: flex;
+        height: 100%;
+        flex-direction: column;
     }
 
     .recipe-top {
