@@ -4,8 +4,8 @@ $brown2: #C08E45;
 $brown3: rgb(161, 103, 74);
 $dark1: #3d3b3c;
 $dark2: #323031;
-$recipe-width: 320px;
-$recipe-height: 480px;
+$recipe-width: 360px;
+$recipe-height: 540px;
 
 body {
     background: $color1;
@@ -73,6 +73,10 @@ body {
 
 .CodeMirror-focused .CodeMirror-selected {
     background: rgba(0.1, 0, 0, 0.15) !important;
+}
+
+.CodeMirror {
+    flex-grow: 1;
 }
 
 .cm-shell-type-dark {
@@ -262,6 +266,14 @@ body {
         margin-left: 14px;
         margin-right: 14px;
         flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+
+        .recipe-editor-holder {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
     }
 
     .recipe-bottom {
