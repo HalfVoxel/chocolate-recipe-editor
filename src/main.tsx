@@ -699,7 +699,7 @@ class Recipe extends Component<RecipeProps> {
                                 this.state.recipe.moulds.length > 0 ? this.state.recipe.moulds.map(mould => <Mould mould={mould} usageCount={1} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />) : (<div class="recipe-moulds-dropzone draggable-source">Drop moulds here</div>)
                             }
                         </div>
-                        <div ref={this.textarea}></div>
+                        <div class="recipe-editor-holder" ref={this.textarea}></div>
                         <a role="button" class={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.rebalance(model_weight)}><span>Rebalance to moulds ({model_weight.toFixed()} g)</span></a>
                     </div>
                     <div class="recipe-bottom">
