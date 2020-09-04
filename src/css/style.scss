@@ -215,6 +215,9 @@ body {
     font-family: "Bitter";
     margin: 5px;
     height: $recipe-height;
+    display: flex;
+    height: 100%;
+    flex-direction: column;
 
     .recipe-inner {
         display: block;
@@ -258,6 +261,7 @@ body {
     .recipe-contents {
         margin-left: 14px;
         margin-right: 14px;
+        flex-grow: 1;
     }
 
     .recipe-bottom {
