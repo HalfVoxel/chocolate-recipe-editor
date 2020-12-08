@@ -175,5 +175,21 @@
         },
         "layout": [3, 8],
         "properties": []
+    },
+    {
+        "name": "tält",
+        "model": "CW1926",
+        "length": 275,
+        "width": 135,
+        "height": 30,
+        "cavity": {
+            "length": 30.5,
+            "width": 30.5,
+            "height": 24,
+            "weight": 12,
+            "footprint": "circle"
+        },
+        "layout": [3, 7],
+        "properties": []
     }
 ]
