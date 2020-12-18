@@ -2,6 +2,7 @@ $color1: #eae7dc;
 $brown1: #CFAA75;
 $brown2: #C08E45;
 $brown3: rgb(161, 103, 74);
+$purple: rgb(102, 0, 161);
 $dark1: #3d3b3c;
 $dark2: #323031;
 $recipe-width: 360px;
@@ -17,6 +18,10 @@ body {
 }
 .cm-recipe-measurement {
     color: $brown3;
+}
+
+.cm-recipe-scaling {
+    color: $purple;
 }
 .cm-keyword-to {
     color: $brown3;

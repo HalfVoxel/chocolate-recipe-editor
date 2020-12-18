@@ -91,18 +91,23 @@ const RecipeParserStates = {
             dedent: true,
         },
         {
-            regex: /\s\s/,
+            regex: /		/,
             sol: true,
             token: "twotabs",
             next: "doubleindent",
         },
         {
-            regex: /\s+/,
+            regex: /\	/,
             token: "whitespace",
         },
         {
-            regex: /(\d+(?:\.\d*)?(?:\s*(?:g|gram|ml|l|pinch|nypa|tsk|msk|tsp|tbsp))?)(\s*)(.+)?/,
-            token: ["recipe-measurement", null, "recipe-name"],
+            // Ignore space
+            regex: / +/,
+            token: null,
+        },
+        {
+            regex: /(\d+(?:\.\d*)?\s*(?:g|gram|ml|l|pinch|nypa|tsk|msk|tsp|tbsp)?)(\s*)(\*\s*\d+(?:\.\d+)?|=>\s*\d+(?:\.\d+)?\s*(?:g|gram|ml|l|pinch|nypa|tsk|msk|tsp|tbsp)?)?(\s*)(.+)/,
+            token: ["recipe-measurement", null, "recipe-scaling", null, "recipe-name"],
         },
         {
             regex: /.+/,

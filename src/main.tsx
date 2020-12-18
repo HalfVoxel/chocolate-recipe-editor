@@ -37,6 +37,12 @@ interface Measurement {
     unit: string;
     original_value: number;
     multiplier: number;
+    scaling: MeaurementScaling | null;
+}
+
+interface MeaurementScaling {
+    type: "multiplier" | "to value";
+    value: number;
 }
 
 interface ParsedRecipeItem {
@@ -75,6 +81,27 @@ class ParsedRecipe {
         return this.sections.map(section => section.items.map(s => s.amount ? s.amount.original_value * s.amount.multiplier : 0).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
     }
 
+    multiply(multiplier: number) {
+        for (const section of this.sections) {
+            for (const item of section.items) {
+                if (item.amount) {
+                    item.amount.multiplier *= multiplier;
+                    item.amount.value = item.amount.original_value * item.amount.multiplier;
+                }
+            }
+        }
+    }
+
+    clear_scaling() {
+        for (const section of this.sections) {
+            for (const item of section.items) {
+                if (item.amount) {
+                    item.amount.scaling = null;
+                }
+            }
+        }
+    }
+
     prettyPrint(): string {
         let result = "";
         if (this.shells) {
@@ -83,7 +110,19 @@ class ParsedRecipe {
         for (const section of this.sections) {
             result += section.name + "\n";
             for (const item of section.items) {
-                result += "\t" + (item.amount != null ? prettyPrintNumber(item.amount.value) + item.amount.unit + " " : "") + item.name + "\n";
+                result += "\t";
+                const amount = item.amount;
+                if (amount) {
+                    result += prettyPrintNumber(amount.value) + amount.unit;
+                    const scaling = amount.scaling;
+                    if (scaling) {
+                        result += scaling.type == "multiplier" ? "*" : "=>";
+                        result += scaling.value;
+                    }
+                    result += " ";
+                }
+                
+                result += item.name + "\n";
                 for (const subitem of item.additional_steps) {
                     result += "\t\t" + subitem + "\n";
                 }
@@ -107,15 +146,31 @@ interface CodeMirrorToken {
     state: string;
 }
 
-class EOLError { }
-class UnexpectedTokenError {
+class EOLError extends Error {
+    constructor() {
+        super("EOL");
+        // Set the prototype explicitly.
+        Object.setPrototypeOf(this, EOLError.prototype);
+    }
+    toString() {
+        return "Unexpected end of line";
+    }
+}
+
+class UnexpectedTokenError extends Error {
     found: string;
     expected: string;
     token: CodeMirrorToken | null;
     constructor(found: string, expected: string, token: CodeMirrorToken | null) {
+        super("UnexpectedTokenError");
         this.found = found;
         this.expected = expected;
         this.token = token;
+        // Set the prototype explicitly.
+        Object.setPrototypeOf(this, UnexpectedTokenError.prototype);
+    }
+    toString() {
+        return "Expected token " + this.expected + " but found " + this.found;
     }
 }
 
@@ -140,6 +195,9 @@ class TokenStream {
     }
 
     expect(type: string) {
+        if (this.isAtEnd()) {
+            throw new UnexpectedTokenError("<end of line>", type, null);
+        }
         let res = this.next();
         if (res.type.split(" ").indexOf(type) == -1) throw new UnexpectedTokenError(res.type, type, res);
         return res;
@@ -350,7 +408,7 @@ function parseRecipe(text: string): ParsedRecipe {
                     stream.expectEnd();
                 } else {
                     let first = stream.expect("recipe-measurement");
-                    let measurement = null;
+                    let measurement: Measurement|null = null;
                     if (first && first.type == "recipe-measurement") {
                         const matches = first.string.match(/^([0-9\.]+)(.*)$/);
                         const value = parseFloat(matches![1]);
@@ -359,7 +417,25 @@ function parseRecipe(text: string): ParsedRecipe {
                             unit: matches![2],
                             original_value: value,
                             multiplier: 1.0,
+                            scaling: null,
                         };
+
+                        if (stream.peek()?.type == "recipe-scaling") {
+                            const scaling = stream.next();
+                            const matches = scaling.string.match(/(\*|=>)\s*(\d+(:?\.\d+)?)/);
+                            const value = parseFloat(matches![2]);
+                            if (matches![1] == "*") {
+                                measurement.scaling = {
+                                    type: "multiplier",
+                                    value
+                                }
+                            } else {
+                                measurement.scaling = {
+                                    type: "to value",
+                                    value
+                                }
+                            }
+                        }
                     }
                     let name = stream.expect("recipe-name");
                     if (!section) {
@@ -401,6 +477,7 @@ function parseRecipe(text: string): ParsedRecipe {
                         unit: matches![2],
                         original_value: value,
                         multiplier: 1.0,
+                        scaling: null,
                     };
                     item.final_amount = measurement;
                 }
@@ -425,7 +502,8 @@ function parseRecipe(text: string): ParsedRecipe {
             } else {
                 throw e;
             }
-            console.log("Failure ", e);
+            console.log(`Failure on line ${lineNumber}`, e.toString());
+            console.error(e);
         }
     });
     return parsed;
@@ -613,6 +691,20 @@ class Recipe extends Component<RecipeProps> {
         return result;
     }
 
+    multiply_recipe(multiplier: number) {
+        const parsed = parseRecipe(this.codemirror.getValue());
+        if (parsed.parse_success) {
+            this.findExactValues(parsed, this.parsed_recipe);
+            this.parsed_recipe = parsed;
+        } else {
+            return;
+        }
+
+        parsed.multiply(multiplier);
+        parsed.clear_scaling();
+        this.codemirror.setValue(parsed.prettyPrint());
+    }
+
     rebalance(weight: number) {
         if (weight <= 0) return;
 
@@ -641,14 +733,7 @@ class Recipe extends Component<RecipeProps> {
             multiplier *= (50 * Math.ceil(largestWeight / 50)) / largestWeight;
         }
 
-        for (const section of parsed.sections) {
-            for (const item of section.items) {
-                if (item.amount) {
-                    item.amount.multiplier *= multiplier;
-                    item.amount.value = item.amount.original_value * item.amount.multiplier;
-                }
-            }
-        }
+        parsed.multiply(multiplier);
 
         this.codemirror.setValue(parsed.prettyPrint());
     }
@@ -670,6 +755,20 @@ class Recipe extends Component<RecipeProps> {
 
         const leftover = (this.parsed_recipe.totalWeight() - Math.max(0, model_weight - 100)).toFixed(0);
         const inputText = document.activeElement === this.inputLeftover?.current ? this.state.manualLeftover : leftover;
+
+        let manual_rebalance: number|null = null;
+        for (const section of this.parsed_recipe.sections) {
+            for (const item of section.items) {
+                if (item.amount && item.amount.scaling) {
+                    const scaling = item.amount.scaling;
+                    if (scaling.type == "multiplier") {
+                        manual_rebalance = scaling.value;
+                    } else {
+                        manual_rebalance = scaling.value / item.amount.value;
+                    }
+                }
+            }
+        }
 
         let inputLeftover = (<input
             ref={this.inputLeftover}
@@ -700,7 +799,15 @@ class Recipe extends Component<RecipeProps> {
                             }
                         </div>
                         <div class="recipe-editor-holder" ref={this.textarea}></div>
-                        <a role="button" class={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.rebalance(model_weight)}><span>Rebalance to moulds ({model_weight.toFixed()} g)</span></a>
+                        {
+                            manual_rebalance != null ?
+                                (
+                                    <a role="button" class={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.multiply_recipe(manual_rebalance!)}><span>Multiply recipe by ({manual_rebalance!.toFixed(2)})</span></a>
+                                )
+                            : (
+                                <a role="button" class={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.rebalance(model_weight)}><span>Rebalance to moulds ({model_weight.toFixed()} g)</span></a>
+                            )
+                        }
                     </div>
                     <div class="recipe-bottom">
                         <div class="recipe-total">
