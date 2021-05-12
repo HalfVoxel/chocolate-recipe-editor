@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "codemirror": "^5.52.0",
+    "codemirror": "^5.58.2",
     "css-loader": "^3.4.0",
     "mini-css-extract-plugin": "^0.9",
     "node-sass": "^4.13.0",
