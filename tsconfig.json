@@ -1,23 +1,65 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "tsconfig",
+  "presets": [
+    [
+      "react-app",
+      {
+        "flow": false,
+        "typescript": true
+      }
+    ]
+  ],
   "compilerOptions": {
-    "outDir": "./dist/js",
-    "noImplicitAny": true,
-    "module": "es6",
-    "target": "es5",
-    "lib": ["es6", "dom"],
-    "jsx": "preserve",
-    "allowJs": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "noImplicitReturns": true,
-    "strictNullChecks": true,
-    "noFallthroughCasesInSwitch": true,
+    // from @tsconfig/node20
+    "target": "es2022",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    // taken from @tsconfig/strictest
     "strict": true,
-    "sourceMap": true,
-    "moduleResolution": "node",
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noImplicitAny": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    // taken from 'https://tsx.is/typescript'
+    // Treat files as modules even if it doesn't use import/export
+    "moduleDetection": "auto",
+    // Ignore module structure
+    "module": "Preserve",
+    // Allow JSON modules to be imported
+    "resolveJsonModule": true,
+    // Allow JS files to be imported from TS and vice versa
+    "allowJs": true,
+    // Use correct ESM import behavior
+    "esModuleInterop": true,
+    // Disallow features that require cross-file awareness
+    "isolatedModules": true,
+    // recommended
+    "verbatimModuleSyntax": true,
+    // custom
+    "jsx": "preserve",
+    // "jsxImportSource": "react",
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "skipLibCheck": false,
+    "tsBuildInfoFile": ".cache/.tsbuildinfo"
   },
   "include": [
-    "src/*.tsx",
-    "src/*.ts"
+    "src",
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

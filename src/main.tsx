@@ -3,13 +3,15 @@ import { StringStream } from "codemirror"
 import "codemirror/addon/mode/simple.js"
 import "codemirror/addon/mode/overlay.js"
 import "codemirror/addon/runmode/runmode.js"
-import { render, Component, createRef, Fragment } from 'inferno';
+import * as React from 'react'
+import { Component, createRef, Fragment } from 'react';
 import '../node_modules/codemirror/lib/codemirror.css';
 import './css/style.scss';
 import { DragManager } from "./dragdrop"
 import { debounce } from 'ts-debounce';
-import { MouldCavity, MouldData, RecipeData, RecipeDataServer, RecipeDataShallow, SessionServer, ServerResponse, convertServerRecipeToRecipe, convertRecipeToServerRecipe, SessionDeepServer, Session } from "./data";
+import { type MouldCavity, type MouldData, type RecipeData, type RecipeDataServer, type RecipeDataShallow, type SessionServer, type ServerResponse, convertServerRecipeToRecipe, convertRecipeToServerRecipe, type SessionDeepServer, type Session } from "./data";
 import { addRecipeMode, tokenizeRecipe } from "./codemirror_mode";
+import { createRoot } from "react-dom/client";
 
 const codemirror: any = CodeMirror;
 addRecipeMode(codemirror);
@@ -121,7 +123,7 @@ class ParsedRecipe {
                     }
                     result += " ";
                 }
-                
+
                 result += item.name + "\n";
                 for (const subitem of item.additional_steps) {
                     result += "\t\t" + subitem + "\n";
@@ -152,7 +154,7 @@ class EOLError extends Error {
         // Set the prototype explicitly.
         Object.setPrototypeOf(this, EOLError.prototype);
     }
-    toString() {
+    override toString() {
         return "Unexpected end of line";
     }
 }
@@ -169,7 +171,7 @@ class UnexpectedTokenError extends Error {
         // Set the prototype explicitly.
         Object.setPrototypeOf(this, UnexpectedTokenError.prototype);
     }
-    toString() {
+    override toString() {
         return "Expected token " + this.expected + " but found " + this.found;
     }
 }
@@ -198,7 +200,7 @@ class TokenStream {
         if (this.isAtEnd()) {
             throw new UnexpectedTokenError("<end of line>", type, null);
         }
-        let res = this.next();
+        let res = this.next()!;
         if (res.type.split(" ").indexOf(type) == -1) throw new UnexpectedTokenError(res.type, type, res);
         return res;
     }
@@ -210,7 +212,7 @@ class TokenStream {
     convert_remaining_to_string() {
         let result = "";
         while (!this.isAtEnd()) {
-            result += this.next().string;
+            result += this.next()!.string;
         }
         return result;
     }
@@ -227,10 +229,13 @@ interface RecipeAdderProps {
 }
 
 
-class RecipeAdder extends Component<RecipeAdderProps> {
-    state: { adding: boolean, recipes: RecipeDataShallow[] | null } = { adding: false, recipes: null };
+class RecipeAdder extends Component<RecipeAdderProps, { adding: boolean, recipes: RecipeDataShallow[] | null }> {
+    constructor(props: RecipeAdderProps) {
+        super(props);
+        this.state = { adding: false, recipes: null };
+    }
 
-    componentDidMount() {
+    override componentDidMount() {
         this.updateRecipes();
     }
 
@@ -259,18 +264,18 @@ class RecipeAdder extends Component<RecipeAdderProps> {
         }
     }
 
-    render() {
+    override render() {
         if (!this.state.adding) {
             return (
-                <a role="button" onClick={() => { this.updateRecipes(); this.setState({ adding: true }) }} class="recipe-adder recipe-adder-dashed recipe-adder-big-plus">
+                <a role="button" onClick={() => { this.updateRecipes(); this.setState({ adding: true }) }} className="recipe-adder recipe-adder-dashed recipe-adder-big-plus">
                     +
                 </a>
             )
         } else {
             return (
-                <div class="recipe-adder">
-                    <div class="recipe-adder-recipe-list">
-                        {this.state.recipes?.map(recipe => (<a onClick={() => this.loadRecipe(recipe)}><i class="fas fa-file-alt"></i> {recipe.name}</a>))}
+                <div className="recipe-adder">
+                    <div className="recipe-adder-recipe-list">
+                        {this.state.recipes?.map(recipe => (<a onClick={() => this.loadRecipe(recipe)}><i className="fas fa-file-alt"></i> {recipe.name}</a>))}
                     </div>
                 </div>
             )
@@ -282,25 +287,29 @@ interface SessionListProps {
     database: RecipeDatabase;
 }
 
-class SessionList extends Component<SessionListProps> {
-    state: { sessions: Session[] } = { sessions: [] };
+class SessionList extends Component<SessionListProps, { sessions: Session[] }> {
 
-    componentDidMount() {
+    constructor(props: SessionListProps) {
+        super(props);
+        this.state = { sessions: [] };
+    }
+
+    override componentDidMount() {
         this.props.database.loadAllSessionsDeep().then(sessions => {
             this.setState({ sessions });
         });
     }
 
-    render() {
-        return (<div class="session-list">
+    override render() {
+        return (<div className="session-list">
             {
                 this.state.sessions.map(session =>
-                    (<div class="session-list-item">
-                        <a href={"" + session.id}><h2>{session.name} ({toLocalDateString(new Date(session.last_edited))})</h2></a>
-                        <ul>
-                            {session.recipes.map(recipe => <li><a href={"recipes/" + recipe.id}>{recipe.name}</a></li>)}
-                        </ul>
-                    </div>)
+                (<div key={session.id} className="session-list-item">
+                    <a href={"" + session.id}><h2>{session.name} ({toLocalDateString(new Date(session.last_edited))})</h2></a>
+                    <ul>
+                        {session.recipes.map(recipe => <li key={recipe.id}><a href={"recipes/" + recipe.id}>{recipe.name}</a></li>)}
+                    </ul>
+                </div>)
                 )
             }
         </div>);
@@ -311,12 +320,16 @@ interface NewSessionProps {
     onCreate: (name: string) => void;
 }
 
-class NewSession extends Component<NewSessionProps> {
-    state = { name: "" }
+class NewSession extends Component<NewSessionProps, { name: string }> {
 
-    render() {
+    constructor(props: NewSessionProps) {
+        super(props);
+        this.state = { name: "" };
+    }
+
+    override render() {
         return (
-            <div class="new-session">
+            <div className="new-session">
                 <h2>Create new session</h2>
                 <input type="text" placeholder="Name" onInput={ev => this.setState({ name: (ev.target as HTMLInputElement).value })} value={this.state.name}></input>
                 <a role="button" onClick={() => this.props.onCreate(this.state.name)}>Create</a>
@@ -333,10 +346,10 @@ class RecipePlaintext extends Component<RecipePlaintextProps> {
         super(props);
     }
 
-    render() {
+    override render() {
         const recipe = this.props.recipe;
         return (
-            <div class="recipe-plaintext">
+            <div className="recipe-plaintext">
                 <h3>{recipe.name}</h3>
                 <span>{"\t"}Formar: {recipe.moulds.map(m => m.name).join(", ")}<br /></span>
                 {recipe.recipe.split("\n").map(line => (<span>{"\t" + line}<br /></span>))}
@@ -398,7 +411,7 @@ function parseRecipe(text: string): ParsedRecipe {
             if (indent == 1) {
                 if (stream.peek()?.type == "recipe-comment") {
                     while (stream.peek()?.type == "recipe-comment") {
-                        let comment = stream.next();
+                        let comment = stream.next()!;
                         if (section) {
                             if (!section.post_comments) section.post_comments = "";
                             else section.post_comments += "\n";
@@ -408,22 +421,22 @@ function parseRecipe(text: string): ParsedRecipe {
                     stream.expectEnd();
                 } else {
                     let first = stream.expect("recipe-measurement");
-                    let measurement: Measurement|null = null;
+                    let measurement: Measurement | null = null;
                     if (first && first.type == "recipe-measurement") {
                         const matches = first.string.match(/^([0-9\.]+)(.*)$/);
                         const value = parseFloat(matches![1]);
                         measurement = {
                             value: value,
-                            unit: matches![2],
+                            unit: matches![2]!,
                             original_value: value,
                             multiplier: 1.0,
                             scaling: null,
                         };
 
                         if (stream.peek()?.type == "recipe-scaling") {
-                            const scaling = stream.next();
+                            const scaling = stream.next()!;
                             const matches = scaling.string.match(/(\*|=>)\s*(\d+(:?\.\d+)?)/);
-                            const value = parseFloat(matches![2]);
+                            const value = parseFloat(matches![2]!);
                             if (matches![1] == "*") {
                                 measurement.scaling = {
                                     type: "multiplier",
@@ -471,15 +484,17 @@ function parseRecipe(text: string): ParsedRecipe {
                 if (last && last.type == "keyword-to") {
                     stream.next();
                     const matches = stream.expect("recipe-measurement").string.match(/^([0-9\.]+)(.*)$/);
-                    const value = parseFloat(matches![1]);
-                    const measurement = {
-                        value: value,
-                        unit: matches![2],
-                        original_value: value,
-                        multiplier: 1.0,
-                        scaling: null,
-                    };
-                    item.final_amount = measurement;
+                    if (matches !== null && matches.length == 3) {
+                        const value = parseFloat(matches[1]!);
+                        const measurement = {
+                            value: value,
+                            unit: matches[2]!,
+                            original_value: value,
+                            multiplier: 1.0,
+                            scaling: null,
+                        };
+                        item.final_amount = measurement;
+                    }
                 }
                 item.additional_steps.push(remaining);
                 stream.expectEnd();
@@ -509,9 +524,8 @@ function parseRecipe(text: string): ParsedRecipe {
     return parsed;
 }
 
-class Recipe extends Component<RecipeProps> {
+class Recipe extends Component<RecipeProps, { recipe: RecipeData, manualLeftover: string }> {
     textarea: any;
-    state: { recipe: RecipeData, manualLeftover: string };
     moulds_container: any;
     inputLeftover: any;
     codemirror: any;
@@ -568,7 +582,7 @@ class Recipe extends Component<RecipeProps> {
         });
     }
 
-    componentDidMount() {
+    override componentDidMount() {
         this.codemirror = CodeMirror(this.textarea.current, {
             value: this.state.recipe.recipe,
             mode: "testmode",
@@ -640,9 +654,9 @@ class Recipe extends Component<RecipeProps> {
 
     findBestValue(recipe: ParsedRecipe, sectionIndex: number, itemIndex: number, sectionName: string, itemName: string, measurement: Measurement) {
         for (let i = 0; i < recipe.sections.length; i++) {
-            const section = recipe.sections[i];
+            const section = recipe.sections[i]!;
             for (let j = 0; j < section.items.length; j++) {
-                const item = section.items[j];
+                const item = section.items[j]!;
 
                 if (item.amount) {
                     let score = 0;
@@ -664,9 +678,9 @@ class Recipe extends Component<RecipeProps> {
 
     findExactValues(recipe: ParsedRecipe, previousRecipe: ParsedRecipe) {
         for (let i = 0; i < recipe.sections.length; i++) {
-            const section = recipe.sections[i];
+            const section = recipe.sections[i]!;
             for (let j = 0; j < section.items.length; j++) {
-                const item = section.items[j];
+                const item = section.items[j]!;
                 if (item.amount) {
                     const previous = this.findBestValue(previousRecipe, i, j, section.name, item.name, item.amount);
                     if (previous != null) {
@@ -742,7 +756,7 @@ class Recipe extends Component<RecipeProps> {
         this.props.onDelete();
     }
 
-    render() {
+    override render() {
         // Note: this.codemirror will be null the first time render is called
         const parsed = parseRecipe(this.codemirror ? this.codemirror.getValue() : this.state.recipe.recipe);
         if (parsed.parse_success) {
@@ -756,7 +770,7 @@ class Recipe extends Component<RecipeProps> {
         const leftover = (this.parsed_recipe.totalWeight() - Math.max(0, model_weight - 100)).toFixed(0);
         const inputText = document.activeElement === this.inputLeftover?.current ? this.state.manualLeftover : leftover;
 
-        let manual_rebalance: number|null = null;
+        let manual_rebalance: number | null = null;
         for (const section of this.parsed_recipe.sections) {
             for (const item of section.items) {
                 if (item.amount && item.amount.scaling) {
@@ -782,40 +796,48 @@ class Recipe extends Component<RecipeProps> {
             onFocus={() => this.setState({ manualLeftover: leftover })}
             onBlur={() => this.setState({})}
             type="text"
-            style={"width: calc(" + (Math.max(1, inputText.length)) + "ch + 2px); -webkit-appearance: none; appearance: none; background: none; color: white; border: none; font-size: 12pt;"}
-            value={inputText}></input>);
+            style={{
+                width: `calc(${Math.max(1, inputText.length)}ch + 2px)`,
+                "WebkitAppearance": "none",
+                "appearance": "none",
+                "background": "none",
+                "color": "white",
+                "border": "none",
+                "fontSize": "12pt",
+            }}
+            value={inputText} ></input >);
 
         return (
-            <div class="recipe draggable-source">
-                <div class="recipe-inner">
-                    <div class="recipe-top">
-                        <input class="recipe-name" type="text" value={this.state.recipe.name} onInput={ev => { this.state.recipe.name = (ev.target as HTMLInputElement).value; this.setState({}); this.debouncedSave(); }} />
-                        <a role="button" class="recipe-delete fas fa-trash" onClick={() => this.delete()}></a>
+            <div className="recipe draggable-source">
+                <div className="recipe-inner">
+                    <div className="recipe-top">
+                        <input className="recipe-name" type="text" value={this.state.recipe.name} onInput={ev => { this.state.recipe.name = (ev.target as HTMLInputElement).value; this.setState({}); this.debouncedSave(); }} />
+                        <a role="button" className="recipe-delete fas fa-trash" onClick={() => this.delete()}></a>
                     </div>
-                    <div class="recipe-contents">
-                        <div class="recipe-moulds" ref={this.moulds_container}>
+                    <div className="recipe-contents">
+                        <div className="recipe-moulds" ref={this.moulds_container}>
                             {
-                                this.state.recipe.moulds.length > 0 ? this.state.recipe.moulds.map(mould => <Mould mould={mould} usageCount={1} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />) : (<div class="recipe-moulds-dropzone draggable-source">Drop moulds here</div>)
+                                this.state.recipe.moulds.length > 0 ? this.state.recipe.moulds.map((mould, i) => <Mould key={i} mould={mould} usageCount={1} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />) : (<div className="recipe-moulds-dropzone draggable-source">Drop moulds here</div>)
                             }
                         </div>
-                        <div class="recipe-editor-holder" ref={this.textarea}></div>
+                        <div className="recipe-editor-holder" ref={this.textarea}></div>
                         {
                             manual_rebalance != null ?
                                 (
-                                    <a role="button" class={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.multiply_recipe(manual_rebalance!)}><span>Multiply recipe by ({manual_rebalance!.toFixed(2)})</span></a>
+                                    <a role="button" className={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.multiply_recipe(manual_rebalance!)}><span>Multiply recipe by ({manual_rebalance!.toFixed(2)})</span></a>
                                 )
-                            : (
-                                <a role="button" class={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.rebalance(model_weight)}><span>Rebalance to moulds ({model_weight.toFixed()} g)</span></a>
-                            )
+                                : (
+                                    <a role="button" className={"btn-recipe" + (model_weight > 0 ? "" : " btn-disabled")} onClick={() => this.rebalance(model_weight)}><span>Rebalance to moulds ({model_weight.toFixed()} g)</span></a>
+                                )
                         }
                     </div>
-                    <div class="recipe-bottom">
-                        <div class="recipe-total">
-                            <div class="box-top">Filling weight</div>
+                    <div className="recipe-bottom">
+                        <div className="recipe-total">
+                            <div className="box-top">Filling weight</div>
                             <div>{this.parsed_recipe.totalWeight().toFixed(0)} g</div>
                         </div>
-                        <div class="recipe-leftover">
-                            <div class="box-top">Expected leftover filling</div>
+                        <div className="recipe-leftover">
+                            <div className="box-top">Expected leftover filling</div>
                             {inputLeftover}<span> g</span>
                         </div>
                     </div>
@@ -835,7 +857,7 @@ interface MouldProps {
 function titleCase(str: string) {
     str = str.toLowerCase();
     const words = str.split(' ');
-    for (var i = 0; i < words.length; i++) words[i] = words[i].charAt(0).toUpperCase() + words[i].slice(1);
+    for (var i = 0; i < words.length; i++) words[i] = words[i]!.charAt(0).toUpperCase() + words[i]!.slice(1);
 
     return words.join(' '); // ["I'm", "A", "Little", "Tea", "Pot"].join(' ') => "I'm A Little Tea Pot"
 }
@@ -845,21 +867,21 @@ function capitalizeFirstCharacter(str: string) {
 }
 
 class Mould extends Component<MouldProps> {
-    element_holder = createRef();
+    element_holder = createRef<HTMLDivElement>();
 
-    componentDidMount() {
+    override componentDidMount() {
         // this.props.draggable_moulds.add(this.element_holder.current, this.element_holder.current, null);
     }
 
-    render() {
+    override render() {
         let data = this.props.mould;
         return (
-            <div class="mould draggable-source draggable-handle" ref={this.element_holder}>
-                <div class="mould-icon"><span class={"mould-icon-" + data.cavity.footprint}>{data.layout[0] * data.layout[1]}</span></div>
-                <div class="mould-names">
-                    <span class="model">{data.model}</span><span class="nickname">{titleCase(data.name)}</span>
+            <div className="mould draggable-source draggable-handle" ref={this.element_holder}>
+                <div className="mould-icon"><span className={"mould-icon-" + data.cavity.footprint}>{data.layout[0] * data.layout[1]}</span></div>
+                <div className="mould-names">
+                    <span className="model">{data.model}</span><span className="nickname">{titleCase(data.name)}</span>
                 </div>
-                {this.props.usageCount > 0 ? (<span class="mould-usage-count">{this.props.usageCount}</span>) : null}
+                {this.props.usageCount > 0 ? (<span className="mould-usage-count">{this.props.usageCount}</span>) : null}
             </div>
         )
     }
@@ -974,7 +996,7 @@ class App extends Component<{}, AppState> {
         // }
     }
 
-    componentDidMount() {
+    override componentDidMount() {
         this.database.init();
         console.log("Mounted");
 
@@ -984,7 +1006,7 @@ class App extends Component<{}, AppState> {
 
         const match = window.location.pathname.match(/^\/(\d+)$/);
         if (match) {
-            this.loadSession(parseInt(match[1]));
+            this.loadSession(parseInt(match[1]!));
         }
     }
 
@@ -1082,27 +1104,27 @@ class App extends Component<{}, AppState> {
         });
     }
 
-    calculateMouldTemperingAmounts(recipes: RecipeData[]) {
-        const amounts: { [id: string]: number; } = {};
+    calculateMouldTemperingAmounts(recipes: RecipeData[]): { shell: string, mass: number }[] {
+        const amounts = new Map<string, number>();
         for (const recipe of recipes) {
             let parsed = parseRecipe(recipe.recipe);
             let shell = parsed.shells;
             if (!shell) shell = "Unspecified";
 
-            if (typeof amounts[shell] === "undefined") {
-                amounts[shell] = 0;
+            if (!amounts.has(shell)) {
+                amounts.set(shell, 0);
             }
-            amounts[shell] += recipe.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 300 : 200).reduce((a, b) => a + b, 0);
+            amounts.set(shell, amounts.get(shell)! + recipe.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 300 : 200).reduce((a, b) => a + b, 0));
         }
 
         const result = [];
         for (const shell in amounts) {
-            result.push({ "shell": shell, "mass": amounts[shell] });
+            result.push({ shell: shell, mass: amounts.get(shell)! });
         }
         return result;
     }
 
-    render() {
+    override render() {
         let mouldUsage = this.calculateMouldUsage();
 
         if (this.state.session) {
@@ -1110,19 +1132,19 @@ class App extends Component<{}, AppState> {
             const temperingAmount = this.calculateMouldTemperingAmounts(recipes);
             if (this.state.mode == DisplayMode.Normal) {
                 return (
-                    <div class="recipe-editor">
-                        <div class="top">
-                            <a href="/" class="fas fa-arrow-left"></a>
+                    <div className="recipe-editor">
+                        <div className="top">
+                            <a href="/" className="fas fa-arrow-left"></a>
                             <h1>{this.state.session.name}</h1>
                         </div>
-                        <div class="sidebar">
-                            <div class="moulds" ref={this.moulds_holder}>
-                                {this.state.moulds.map(mould => (<Mould mould={mould} usageCount={mouldUsage[mould.id]} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />))}
+                        <div className="sidebar">
+                            <div className="moulds" ref={this.moulds_holder}>
+                                {this.state.moulds.map(mould => (<Mould key={mould.id} mould={mould} usageCount={mouldUsage[mould.id]!} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />))}
                             </div>
-                            <div class="stats">
+                            <div className="stats">
                                 <h4>Tempering chocolate</h4>
                                 {temperingAmount.map(x =>
-                                    <div>
+                                    <div key={x.shell}>
                                         <h5>{x.shell}</h5>
                                         <div><span>Total: {x.mass} g</span></div>
                                         <div><span>Heating: {x.mass * (3 / 4)} g</span></div>
@@ -1131,9 +1153,9 @@ class App extends Component<{}, AppState> {
                                 )}
                                 {/* <span>{recipes.map(r => r.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 500 : 400).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0)}g</span> */}
                             </div>
-                            <a role="button" class="btn-sidebar" onClick={() => this.setState({ mode: DisplayMode.PlainText })}><span>View as plain text</span></a>
+                            <a role="button" className="btn-sidebar" onClick={() => this.setState({ mode: DisplayMode.PlainText })}><span>View as plain text</span></a>
                         </div>
-                        <div class="recipes" ref={this.recipes_holder}>
+                        <div className="recipes" ref={this.recipes_holder}>
                             {recipes.map(recipe => (<Recipe recipe={recipe} key={recipe.id} onChangeRecipe={() => this.setState({})} onDelete={() => this.deleteRecipe(recipe)} onChangeMoulds={() => this.setState({})} draggable_moulds={this.draggable_moulds} />))}
                             <RecipeAdder moulds={this.state.moulds} onAdd={recipe => this.loadRecipe(recipe)} onCreate={() => this.createNewRecipe()} />
                         </div>
@@ -1141,11 +1163,9 @@ class App extends Component<{}, AppState> {
                 );
             } else { // if (this.state.mode == DisplayMode.PlainText) {
                 return (
-                    <div class="recipe-editor">
-                        <div class="recipes-plaintext">
-                            <h1>{this.state.session.name} {toLocalDateString(new Date(this.state.session.last_edited))}</h1>
-                            {recipes.map(recipe => (<RecipePlaintext recipe={recipe} key={recipe.id} />))}
-                        </div>
+                    <div className="recipes-plaintext">
+                        <h1>{this.state.session.name} {toLocalDateString(new Date(this.state.session.last_edited))}</h1>
+                        {recipes.map(recipe => (<RecipePlaintext recipe={recipe} key={recipe.id} />))}
                     </div>
                 );
             }
@@ -1159,7 +1179,13 @@ class App extends Component<{}, AppState> {
         }
     }
 }
-render(
-    <App />,
-    document.getElementById("app-root")
-);
+
+const mount = () => {
+    console.log("Loaded");
+    const container = document.getElementById('app-root');
+    const root = createRoot(container!);
+    root.render(<App />);
+}
+
+if (document.readyState === "loading") document.addEventListener('DOMContentLoaded', mount);
+else mount();

@@ -14,7 +14,7 @@ export interface MouldData {
     width: number;
     height: number;
     cavity: MouldCavity;
-    layout: number[];
+    layout: [number, number];
     properties: string[];
 }
 

@@ -14,9 +14,9 @@ class DragMoveEvent {
 
 interface DragEndEvent<T> {
     source: HTMLElement;
-    target: HTMLElement|null;
-    source_data: T|null;
-    target_data: T|null;
+    target: HTMLElement | null;
+    source_data: T | null;
+    target_data: T | null;
 
     // constructor(source: HTMLElement, target: HTMLElement|null, source_data: T|null, target_data: T|null) {
     //     this.source = source;
@@ -27,27 +27,27 @@ interface DragEndEvent<T> {
 
 interface Item<T> {
     element: HTMLElement;
-    click_zone: HTMLElement|null;
-    drop_zone: HTMLElement|null;
-    custom_data: T|null;
-    on_drop: null|((event: DragEndEvent<T>) => void);
+    click_zone: HTMLElement | null;
+    drop_zone: HTMLElement | null;
+    custom_data: T | null;
+    on_drop: null | ((event: DragEndEvent<T>) => void);
 }
 
 interface CurrentDrag<T> {
     source: Item<T>;
     over: Item<T>;
-    dragged_clone: null|HTMLElement;
-    drag_mouse_start: {x: number, y: number};
-    clone_offset: {x: number, y: number};
+    dragged_clone: null | HTMLElement;
+    drag_mouse_start: { x: number, y: number };
+    clone_offset: { x: number, y: number };
 }
 
 export class DragManager<T> {
     private items: Item<T>[] = [];
-    private dragStart: null|((event: DragStartEvent) => void) = null;
-    private dragEnd: null|((event: DragEndEvent<T>) => void) = null;
+    private dragStart: null | ((event: DragStartEvent) => void) = null;
+    private dragEnd: null | ((event: DragEndEvent<T>) => void) = null;
 
-    private currentDrag: null|CurrentDrag<T> = null;
-    private mouse_position: {x: number, y: number} = { x: 0, y: 0 };
+    private currentDrag: null | CurrentDrag<T> = null;
+    private mouse_position: { x: number, y: number } = { x: 0, y: 0 };
 
     constructor() {
         document.addEventListener("mousemove", (ev) => this.onMove(ev));
@@ -62,7 +62,7 @@ export class DragManager<T> {
 
     addContainer(container: HTMLElement, draggable_query?: string, click_zone_query?: string, drop_zone_query?: string) {
         console.log(container);
-        let elements =  draggable_query == null ? container.children : container.querySelectorAll(draggable_query);
+        let elements = draggable_query == null ? container.children : container.querySelectorAll(draggable_query);
 
         for (let i = 0; i < elements.length; i++) {
             let domNode = elements[i] as HTMLElement;
@@ -72,7 +72,7 @@ export class DragManager<T> {
         }
     }
 
-    add(element: HTMLElement, click_zone?: HTMLElement|string|null, drop_zone?: HTMLElement|string|null, custom_data?: T|null, on_drop?: null|((event: DragEndEvent<T>) => void)) {
+    add(element: HTMLElement, click_zone?: HTMLElement | string | null, drop_zone?: HTMLElement | string | null, custom_data?: T | null, on_drop?: null | ((event: DragEndEvent<T>) => void)) {
         if (!element) throw "element is null";
 
         let click_zone_element = typeof click_zone === "string" ? element.querySelector(click_zone) as HTMLElement : click_zone;
@@ -112,7 +112,7 @@ export class DragManager<T> {
     private onDown(ev: MouseEvent) {
         this.cancelDrag();
         for (let i = 0; i < this.items.length; i++) {
-            let item = this.items[i];
+            let item = this.items[i]!;
             if (item.click_zone && item.click_zone.contains(ev.target as HTMLElement)) {
                 let rect = item.element.getBoundingClientRect();
                 this.currentDrag = {
@@ -133,7 +133,7 @@ export class DragManager<T> {
         if (!this.currentDrag) return;
         if (this.currentDrag.dragged_clone) {
             for (let i = 0; i < this.items.length; i++) {
-                let item = this.items[i];
+                let item = this.items[i]!;
                 if (item.drop_zone && item.drop_zone.contains(ev.target as HTMLElement)) {
                     let event = { source: this.currentDrag.source.element, target: item.element, source_data: this.currentDrag.source.custom_data, target_data: item.custom_data };
                     try {
@@ -152,7 +152,7 @@ export class DragManager<T> {
     }
 
     private onMove(ev: MouseEvent) {
-        this.mouse_position = {x: ev.clientX, y: ev.clientY};
+        this.mouse_position = { x: ev.clientX, y: ev.clientY };
 
         if (!this.currentDrag) return;
 
@@ -162,11 +162,11 @@ export class DragManager<T> {
             return;
         }
 
-        if (!this.currentDrag.dragged_clone && (Math.pow(this.currentDrag.drag_mouse_start.x - this.mouse_position.x, 2) + Math.pow(this.currentDrag.drag_mouse_start.y - this.mouse_position.y, 2)) > 5*5) {
+        if (!this.currentDrag.dragged_clone && (Math.pow(this.currentDrag.drag_mouse_start.x - this.mouse_position.x, 2) + Math.pow(this.currentDrag.drag_mouse_start.y - this.mouse_position.y, 2)) > 5 * 5) {
             const sourceElement = this.currentDrag.source.element;
             const clone = sourceElement.cloneNode(true) as HTMLElement;
             const rect = sourceElement.getBoundingClientRect();
-            clone.style.width = rect.width + "px"; 
+            clone.style.width = rect.width + "px";
             clone.style.height = rect.height + "px";
             document.body.appendChild(clone);
             clone.classList.add("dragdrop-clone");
@@ -180,5 +180,5 @@ export class DragManager<T> {
             this.currentDrag.dragged_clone.style.top = (ev.clientY + this.currentDrag.clone_offset.y) + "px";
         }
     }
-    
+
 }
