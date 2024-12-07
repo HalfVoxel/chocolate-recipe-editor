@@ -1151,11 +1151,7 @@ class App extends Component<{}, AppState> {
             amounts.set(shell, amounts.get(shell)! + recipe.moulds.map(m => (m.mould.layout[0] * m.mould.layout[1] > 30 ? 300 : 200) * m.count).reduce((a, b) => a + b, 0));
         }
 
-        const result = [];
-        for (const shell in amounts) {
-            result.push({ shell: shell, mass: amounts.get(shell)! });
-        }
-        return result;
+        return Array.from(amounts.entries().map(([shell, mass]) => ({ shell, mass })));
     }
 
     override render() {
