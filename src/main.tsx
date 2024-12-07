@@ -351,7 +351,7 @@ class RecipePlaintext extends Component<RecipePlaintextProps> {
         return (
             <div className="recipe-plaintext">
                 <h3>{recipe.name}</h3>
-                <span>{"\t"}Formar: {recipe.moulds.map(m => m.name).join(", ")}<br /></span>
+                <span>{"\t"}Formar: {recipe.moulds.map(m => m.count + "x " + m.mould.name).join(", ")}<br /></span>
                 {recipe.recipe.split("\n").map(line => (<span>{"\t" + line}<br /></span>))}
             </div>
         );
@@ -543,18 +543,25 @@ class Recipe extends Component<RecipeProps, { recipe: RecipeData, manualLeftover
         this.inputLeftover = createRef();
     }
 
-    removeMould(mould: MouldData) {
+    removeMould(mould: MouldData): boolean {
         let recipe = this.state.recipe;
-        recipe.moulds = recipe.moulds.filter(m => m != mould);
+        const any = recipe.moulds.find(u => u.mould == mould) !== undefined;
+        recipe.moulds = recipe.moulds.map(u => u.mould == mould ? { ...u, count: u.count - 1 } : u).filter(u => u.count > 0);
         this.setState({ recipe });
         if (this.props.onChangeMoulds) this.props.onChangeMoulds();
         this.debouncedSave();
         this.debouncedUpdateUI();
+        return any;
     }
 
     addMould(mould: MouldData) {
-        let recipe = this.state.recipe;
-        recipe.moulds = recipe.moulds.concat([mould]);
+        const recipe = this.state.recipe;
+        const existing = recipe.moulds.find(u => u.mould == mould);
+        if (existing) {
+            existing.count++;
+        } else {
+            recipe.moulds = recipe.moulds.concat([{ mould, count: 1 }]);
+        }
         this.setState({ recipe });
         if (this.props.onChangeMoulds) this.props.onChangeMoulds();
         this.debouncedSave();
@@ -695,9 +702,9 @@ class Recipe extends Component<RecipeProps, { recipe: RecipeData, manualLeftover
     mould_weight_model(recipe: RecipeData) {
         let result = 0
         for (const mould of recipe.moulds) {
-            const weight = mould.cavity.weight;
-            const count = mould.layout[0] * mould.layout[1];
-            const v0 = count * weight;
+            const weight = mould.mould.cavity.weight;
+            const itemCount = mould.mould.layout[0] * mould.mould.layout[1];
+            const v0 = itemCount * weight * mould.count;
             // const v1 = count * (weight**(2/3));
             result += v0 * 0.69 + 93;
         }
@@ -807,17 +814,33 @@ class Recipe extends Component<RecipeProps, { recipe: RecipeData, manualLeftover
             }}
             value={inputText} ></input >);
 
+        let itemCount = 0;
+        const shapeCounts = new Map<string, number>();
+        for (const mould of this.state.recipe.moulds) {
+            const count = mould.count * mould.mould.layout[0] * mould.mould.layout[1];
+            itemCount += count;
+            shapeCounts.set(mould.mould.cavity.footprint, (shapeCounts.get(mould.mould.cavity.footprint) ?? 0) + count);
+        }
+        let mostCommonFootprint: string | null = null;
+        let mostCommonFootprintCount = 0;
+        for (const [footprint, count] of shapeCounts) {
+            if (count > mostCommonFootprintCount) {
+                mostCommonFootprint = footprint;
+                mostCommonFootprintCount = count;
+            }
+        }
         return (
             <div className="recipe draggable-source">
                 <div className="recipe-inner">
                     <div className="recipe-top">
+                        <span className={"recipe-item-count mould-icon " + (itemCount >= 100 ? "large-count" : "")}><span className={"mould-icon-" + (mostCommonFootprint ?? "circle")}>{this.state.recipe.moulds.map(m => m.count * m.mould.layout[0] * m.mould.layout[1]).reduce((a, b) => a + b, 0)}</span></span>
                         <input className="recipe-name" type="text" value={this.state.recipe.name} onInput={ev => { this.state.recipe.name = (ev.target as HTMLInputElement).value; this.setState({}); this.debouncedSave(); }} />
                         <a role="button" className="recipe-delete fas fa-trash" onClick={() => this.delete()}></a>
                     </div>
                     <div className="recipe-contents">
                         <div className="recipe-moulds" ref={this.moulds_container}>
                             {
-                                this.state.recipe.moulds.length > 0 ? this.state.recipe.moulds.map((mould, i) => <Mould key={i} mould={mould} usageCount={1} ref={(element: any) => this.addDraggableMould(mould, element as Mould)} />) : (<div className="recipe-moulds-dropzone draggable-source">Drop moulds here</div>)
+                                this.state.recipe.moulds.length > 0 ? this.state.recipe.moulds.map((mould, i) => <Mould key={i} mould={mould.mould} usageCount={mould.count} ref={(element: any) => this.addDraggableMould(mould.mould, element as Mould)} />) : (<div className="recipe-moulds-dropzone draggable-source">Drop moulds here</div>)
                             }
                         </div>
                         <div className="recipe-editor-holder" ref={this.textarea}></div>
@@ -912,7 +935,7 @@ class RecipeDatabase {
     init() {
         this.moulds = fetch(`data/moulds`).then(r => r.json()).then((moulds: MouldData[]) => {
             for (let i = 0; i < moulds.length; i++) {
-                moulds[i].id = i;
+                moulds[i]!.id = i;
             }
             this.currentMoulds = moulds;
             return moulds;
@@ -957,7 +980,6 @@ interface AppState {
 
 
 class App extends Component<{}, AppState> {
-    state: AppState;
     database: RecipeDatabase = new RecipeDatabase();
     recipes_holder: any;
     moulds_holder: any;
@@ -977,8 +999,15 @@ class App extends Component<{}, AppState> {
         // });
         this.draggable_moulds = new DragManager();
         this.draggable_moulds.onDragEnd(event => {
-            event.source_data!.container?.removeMould(event.source_data!.mould!);
-            event.target_data?.container?.addMould(event.source_data!.mould!);
+            const all = event.mouse_event?.ctrlKey ?? false;
+            if (event.source_data!.container !== null) {
+                while (event.source_data!.container?.removeMould(event.source_data!.mould!)) {
+                    event.target_data?.container?.addMould(event.source_data!.mould!);
+                    if (!all) break;
+                }
+            } else {
+                event.target_data?.container?.addMould(event.source_data!.mould!);
+            }
         });
 
 
@@ -1019,7 +1048,7 @@ class App extends Component<{}, AppState> {
         this.state.moulds.forEach(mould => usage[mould.id] = 0);
         this.state.session.recipes.forEach(recipe => {
             recipe.moulds.forEach(mould => {
-                usage[mould.id] = (usage[mould.id] || 0) + 1;
+                usage[mould.mould.id] = (usage[mould.mould.id] || 0) + mould.count;
             })
         });
         return usage;
@@ -1114,7 +1143,7 @@ class App extends Component<{}, AppState> {
             if (!amounts.has(shell)) {
                 amounts.set(shell, 0);
             }
-            amounts.set(shell, amounts.get(shell)! + recipe.moulds.map(m => m.layout[0] * m.layout[1] > 30 ? 300 : 200).reduce((a, b) => a + b, 0));
+            amounts.set(shell, amounts.get(shell)! + recipe.moulds.map(m => (m.mould.layout[0] * m.mould.layout[1] > 30 ? 300 : 200) * m.count).reduce((a, b) => a + b, 0));
         }
 
         const result = [];

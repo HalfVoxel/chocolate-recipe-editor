@@ -17,6 +17,7 @@ interface DragEndEvent<T> {
     target: HTMLElement | null;
     source_data: T | null;
     target_data: T | null;
+    mouse_event: MouseEvent | null;
 
     // constructor(source: HTMLElement, target: HTMLElement|null, source_data: T|null, target_data: T|null) {
     //     this.source = source;
@@ -102,7 +103,7 @@ export class DragManager<T> {
         if (!this.currentDrag || !this.currentDrag.dragged_clone) return;
 
         try {
-            if (this.dragEnd) this.dragEnd({ source: this.currentDrag.source.element, target: null, source_data: this.currentDrag.source.custom_data, target_data: null });
+            if (this.dragEnd) this.dragEnd({ source: this.currentDrag.source.element, target: null, source_data: this.currentDrag.source.custom_data, target_data: null, mouse_event: null });
         } finally {
             if (this.currentDrag.dragged_clone) this.currentDrag.dragged_clone.remove();
             this.currentDrag = null;
@@ -135,7 +136,13 @@ export class DragManager<T> {
             for (let i = 0; i < this.items.length; i++) {
                 let item = this.items[i]!;
                 if (item.drop_zone && item.drop_zone.contains(ev.target as HTMLElement)) {
-                    let event = { source: this.currentDrag.source.element, target: item.element, source_data: this.currentDrag.source.custom_data, target_data: item.custom_data };
+                    let event: DragEndEvent<T> = {
+                        source: this.currentDrag.source.element,
+                        target: item.element,
+                        source_data: this.currentDrag.source.custom_data,
+                        target_data: item.custom_data,
+                        mouse_event: ev
+                    };
                     try {
                         if (this.dragEnd) this.dragEnd(event);
                         if (item.on_drop) item.on_drop(event);

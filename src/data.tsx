@@ -18,12 +18,17 @@ export interface MouldData {
     properties: string[];
 }
 
+export type MouldUsage = {
+    mould: MouldData;
+    count: number;
+}
+
 export interface RecipeData {
     id: number;
     session: number;
     last_edited: string;
     name: string;
-    moulds: MouldData[];
+    moulds: MouldUsage[];
     recipe: string;
 }
 
@@ -80,12 +85,25 @@ function notUndefinedOrThrow<T>(x: T | undefined): x is T {
 }
 
 export function convertServerRecipeToRecipe(recipe: RecipeDataServer, moulds: MouldData[]): RecipeData {
-    let clone: RecipeData = { ...recipe, moulds: Array.from(recipe.moulds.map(m => moulds.find(x => x.id == m)).filter(notUndefinedOrThrow)) };
+    const mouldUsages: MouldUsage[] = [];
+    for (let mouldId of recipe.moulds) {
+        const mould = moulds.find(m => m.id == mouldId);
+        if (mould === undefined) {
+            throw "Mould not found";
+        }
+        const existing = mouldUsages.find(m => m.mould.id == mould.id);
+        if (existing) {
+            existing.count++;
+        } else {
+            mouldUsages.push({ mould: mould, count: 1 });
+        }
+    }
+    let clone: RecipeData = { ...recipe, moulds: mouldUsages };
     return clone;
 
 }
 
 export function convertRecipeToServerRecipe(recipe: RecipeData): RecipeDataServer {
-    let clone: RecipeDataServer = { ...recipe, moulds: Array.from(recipe.moulds.map(m => m.id)) };
+    let clone: RecipeDataServer = { ...recipe, moulds: Array.from(recipe.moulds.flatMap(m => new Array(m.count).fill(m.mould.id))) };
     return clone;
 }

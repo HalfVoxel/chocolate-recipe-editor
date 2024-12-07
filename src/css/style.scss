@@ -163,6 +163,35 @@ body {
     user-select: none;
 }
 
+.mould-icon {
+    display: flex;
+    height: 30px;
+    width: 30px;
+    justify-content: center;
+    align-content: center;
+    margin-right: 4px;
+
+    .mould-icon-rectangle {
+        width: 60%;
+        height: 60%;
+        border: 1px solid white;
+        align-self: center;
+        text-align: center;
+        line-height: 140%;
+    }
+
+    .mould-icon-circle,
+    .mould-icon-oval {
+        width: 70%;
+        height: 70%;
+        border-radius: 100px;
+        border: 1px solid white;
+        align-self: center;
+        text-align: center;
+        line-height: 160%;
+    }
+}
+
 .mould {
     background: $brown1;
     color: white;
@@ -179,35 +208,6 @@ body {
     margin-left: 0px;
     position: relative;
     min-width: 132px;
-
-    .mould-icon {
-        display: flex;
-        height: 30px;
-        width: 30px;
-        justify-content: center;
-        align-content: center;
-        margin-right: 4px;
-
-        .mould-icon-rectangle {
-            width: 60%;
-            height: 60%;
-            border: 1px solid white;
-            align-self: center;
-            text-align: center;
-            line-height: 140%;
-        }
-
-        .mould-icon-circle,
-        .mould-icon-oval {
-            width: 70%;
-            height: 70%;
-            border-radius: 100px;
-            border: 1px solid white;
-            align-self: center;
-            text-align: center;
-            line-height: 160%;
-        }
-    }
 
     .mould-names {
         display: flex;
@@ -303,6 +303,15 @@ body {
             font-family: "Bitter";
             font-size: 14pt;
             flex-grow: 1;
+        }
+
+        .recipe-item-count {
+            color: white;
+            font-size: 10pt;
+
+            &.large-count {
+                font-size: 8pt;
+            }
         }
 
         a {
