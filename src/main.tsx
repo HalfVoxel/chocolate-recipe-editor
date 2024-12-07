@@ -424,7 +424,7 @@ function parseRecipe(text: string): ParsedRecipe {
                     let measurement: Measurement | null = null;
                     if (first && first.type == "recipe-measurement") {
                         const matches = first.string.match(/^([0-9\.]+)(.*)$/);
-                        const value = parseFloat(matches![1]);
+                        const value = parseFloat(matches![1]!);
                         measurement = {
                             value: value,
                             unit: matches![2]!,
@@ -452,7 +452,7 @@ function parseRecipe(text: string): ParsedRecipe {
                     }
                     let name = stream.expect("recipe-name");
                     if (!section) {
-                        throw new UnexpectedTokenError("no recipe header", "recipe header", stream.peek());
+                        throw new UnexpectedTokenError("no recipe header", "recipe header", stream.peek()!);
                     }
 
                     item = {
@@ -483,9 +483,14 @@ function parseRecipe(text: string): ParsedRecipe {
                 let last = stream.peek();
                 if (last && last.type == "keyword-to") {
                     stream.next();
-                    const matches = stream.expect("recipe-measurement").string.match(/^([0-9\.]+)(.*)$/);
+                    const matches = stream.expect("recipe-measurement-relative").string.match(/^([0-9\.]+)(.*)$/);
                     if (matches !== null && matches.length == 3) {
-                        const value = parseFloat(matches[1]!);
+                        let value = parseFloat(matches[1]!);
+                        const unit = matches[2]!;
+                        if (unit == "%") {
+                            console.log(`Interpreting ${value}% as percentage of ${item.amount!.value}`);
+                            value = item.amount!.value * value / 100;
+                        }
                         const measurement = {
                             value: value,
                             unit: matches[2]!,
@@ -500,7 +505,7 @@ function parseRecipe(text: string): ParsedRecipe {
                 stream.expectEnd();
             }
 
-            if (indent > 2) throw new UnexpectedTokenError("indent=" + indent, "indent<=2", stream.peek());
+            if (indent > 2) throw new UnexpectedTokenError("indent=" + indent, "indent<=2", stream.peek()!);
         } catch (e) {
             if (e instanceof EOLError || e instanceof UnexpectedTokenError) {
                 // Ok, parse error

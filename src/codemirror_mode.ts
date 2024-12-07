@@ -134,8 +134,8 @@ const RecipeParserStates = {
             token: "whitespace",
         },
         {
-            regex: /(.+)((?:till|to)\s+)(\d+(?:\.\d*)?(?:\s*(?:g|gram|ml|l|pinch|nypa|tsk|msk|tsp|tbsp))?)/,
-            token: ["recipe-name", "keyword-to", "recipe-measurement"],
+            regex: /(.+)((?:till|to)\s+)(\d+(?:\.\d*)?(?:\s*(?:g|gram|ml|l|pinch|nypa|tsk|msk|tsp|tbsp|%))?)/,
+            token: ["recipe-name", "keyword-to", "recipe-measurement-relative"],
         },
         {
             regex: /.+/,
