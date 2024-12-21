@@ -80,7 +80,7 @@ class ParsedRecipe {
     }
 
     totalWeightExact(): number {
-        return this.sections.map(section => section.items.map(s => s.amount ? s.amount.original_value * s.amount.multiplier : 0).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
+        return this.sections.map(section => section.items.map(s => s.final_amount ? s.final_amount.original_value * s.final_amount.multiplier : 0).reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0);
     }
 
     multiply(multiplier: number) {
@@ -487,18 +487,29 @@ function parseRecipe(text: string): ParsedRecipe {
                     if (matches !== null && matches.length == 3) {
                         let value = parseFloat(matches[1]!);
                         const unit = matches[2]!;
-                        if (unit == "%") {
-                            console.log(`Interpreting ${value}% as percentage of ${item.amount!.value}`);
-                            value = item.amount!.value * value / 100;
+                        if (item.final_amount == null) {
+                            console.error("Missing final amount when modifying");
+                        } else {
+                            if (unit == "%") {
+                                console.log(`Interpreting ${value}% as percentage of ${item.amount!.value}`);
+                                const m = value / 100;
+                                value = item.amount!.value * m;
+
+                                item.final_amount = {
+                                    ...item.final_amount,
+                                    value: item.final_amount.value * m,
+                                    multiplier: item.final_amount.multiplier * m,
+                                };
+                            } else {
+                                item.final_amount = {
+                                    value: value,
+                                    unit: matches[2]!,
+                                    original_value: value,
+                                    multiplier: 1.0,
+                                    scaling: item.final_amount.scaling,
+                                };
+                            }
                         }
-                        const measurement = {
-                            value: value,
-                            unit: matches[2]!,
-                            original_value: value,
-                            multiplier: 1.0,
-                            scaling: null,
-                        };
-                        item.final_amount = measurement;
                     }
                 }
                 item.additional_steps.push(remaining);
@@ -755,8 +766,8 @@ class Recipe extends Component<RecipeProps, { recipe: RecipeData, manualLeftover
         }
 
         if (largestWeight > 100) {
-            // Round up to multiples of 50
-            multiplier *= (50 * Math.ceil(largestWeight / 50)) / largestWeight;
+            // Round up to multiples of 25
+            multiplier *= (25 * Math.ceil(largestWeight / 25)) / largestWeight;
         }
 
         parsed.multiply(multiplier);
