@@ -242,6 +242,7 @@ class RecipeAdder extends Component<RecipeAdderProps, { adding: boolean, recipes
     updateRecipes() {
         fetch("data/recipes").then(r => r.json()).then((response: ServerResponse<RecipeDataShallow[]>) => {
             const recipes = response.data;
+            recipes.sort((a, b) => a.id == null ? -1 : b.id == null ? 1 : b.id - a.id);
             recipes.unshift({ id: null, name: "New Recipe", last_edited: null });
             this.setState({ recipes });
         }).catch(e => {
@@ -968,6 +969,9 @@ class RecipeDatabase {
                 recipes: s.recipes.map(x => convertServerRecipeToRecipe(x, moulds)),
             } as Session;
         });
+
+        // Newer recipes first
+        sessions.sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime());
         return sessions;
     }
 
