@@ -191,5 +191,21 @@
         },
         "layout": [3, 7],
         "properties": []
+    },
+    {
+        "name": "antiker",
+        "model": "CW2230",
+        "length": 275,
+        "width": 175,
+        "height": 24,
+        "cavity": {
+            "length": 29,
+            "width": 29,
+            "height": 19,
+            "weight": 10,
+            "footprint": "circle"
+        },
+        "layout": [4, 8],
+        "properties": []
     }
 ]
